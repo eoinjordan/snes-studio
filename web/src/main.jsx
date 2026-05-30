@@ -9,6 +9,30 @@ const SCENE_W = 256, SCENE_H = 224, SCALE_X = 2, SCALE_Y = 1.6;
 const slug = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'item';
 const uniqueId = (base, existing) => { const has = new Set(existing); let id = base, n = 2; while (has.has(id)) id = `${base}_${n++}`; return id; };
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const hexToRgb = (hex) => { const s = (hex || '').replace('#', ''); const f = s.length === 3 ? s.split('').map(c => c + c).join('') : s; const n = parseInt(f || '0', 16); return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 }; };
+
+// Renders a sprite frame to a pixel-perfect canvas. Palette index 0 = transparent.
+function SpriteThumb({ sprite, frame = 0, scale = 2, className = '' }) {
+  const ref = useRef(null);
+  const w = sprite?.width || 16, h = sprite?.height || 16;
+  useEffect(() => {
+    const cvs = ref.current; if (!cvs || !sprite) return;
+    cvs.width = w; cvs.height = h;
+    const ctx = cvs.getContext('2d');
+    const img = ctx.createImageData(w, h);
+    const px = sprite.frames?.[frame]?.pixels || [];
+    const pal = sprite.palette || [];
+    for (let i = 0; i < w * h; i++) {
+      const idx = px[i] || 0;
+      if (idx === 0 || !pal[idx]) { img.data[i * 4 + 3] = 0; continue; }
+      const { r, g, b } = hexToRgb(pal[idx]);
+      img.data[i * 4] = r; img.data[i * 4 + 1] = g; img.data[i * 4 + 2] = b; img.data[i * 4 + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+  }, [sprite, frame, w, h]);
+  if (!sprite) return null;
+  return <canvas ref={ref} className={className} style={{ width: w * scale, height: h * scale, imageRendering: 'pixelated' }} />;
+}
 
 function Pill({ children, tone='neutral' }) { return <span className={`pill ${tone}`}>{children}</span>; }
 function Btn({ children, className='', ...props }) { return <button className={`btn ${className}`} {...props}>{children}</button>; }
@@ -112,9 +136,10 @@ function EventEditor({ chains, chainId, setChainId, blocks, onAddChain, onAddSte
   </section>;
 }
 
-function SceneCanvas({ scene, selectedActor, setSelectedActor, onMoveActor, onAddActor }) {
+function SceneCanvas({ scene, sprites, selectedActor, setSelectedActor, onMoveActor, onAddActor }) {
   const ref = useRef(null);
   const [drag, setDrag] = useState(null); // {id, x, y}
+  const spriteById = useMemo(() => Object.fromEntries((sprites || []).map(s => [s.id, s])), [sprites]);
 
   useEffect(() => {
     if (!drag) return;
@@ -144,7 +169,7 @@ function SceneCanvas({ scene, selectedActor, setSelectedActor, onMoveActor, onAd
     <div className="canvas" ref={ref}><div className="grid-bg"/><div className="ground"/>
       {(scene?.collision||[]).map(c=><div key={c.id} className="collision" style={{left:c.x*SCALE_X, top:c.y*SCALE_Y, width:c.w*SCALE_X, height:c.h*SCALE_Y}}>Collision</div>)}
       {(scene?.triggers||[]).map(t=><div key={t.id} className="trigger" style={{left:t.x*SCALE_X, top:t.y*SCALE_Y, width:t.w*SCALE_X, height:t.h*SCALE_Y}}>Trigger</div>)}
-      {(scene?.actors||[]).map(a=>{ const pos = drag?.id===a.id ? drag : a; return <button key={a.id} onPointerDown={(e)=>startDrag(e,a)} className="actor" style={{left:pos.x*SCALE_X, top:pos.y*SCALE_Y, touchAction:'none'}}><motion.div animate={selectedActor===a.id?{y:[0,-4,0]}:{}} transition={{repeat:Infinity,duration:1.3}} className={selectedActor===a.id?'sel':''}/><span>{a.name}</span></button>; })}
+      {(scene?.actors||[]).map(a=>{ const pos = drag?.id===a.id ? drag : a; const spr = spriteById[a.sprite]; return <button key={a.id} onPointerDown={(e)=>startDrag(e,a)} className="actor" style={{left:pos.x*SCALE_X, top:pos.y*SCALE_Y, touchAction:'none'}}><motion.div animate={selectedActor===a.id?{y:[0,-4,0]}:{}} transition={{repeat:Infinity,duration:1.3}} className={`actor-spr ${selectedActor===a.id?'sel':''}`}>{spr ? <SpriteThumb sprite={spr} scale={2}/> : null}</motion.div><span>{a.name}</span></button>; })}
       <div className="hud">A Talk · B Jump · Start Menu</div></div>
   </section>;
 }
@@ -277,11 +302,11 @@ function App(){
       <aside className="left">
         <section className="card"><div className="section-title"><h2>Project</h2><Pill tone={mode==='backend'?'good':'blue'}>{mode}</Pill></div><div className="project-card"><strong>{project?.name||'Loading'}</strong><span>{inventory.scene_count||0} scenes · {inventory.actor_count||0} actors · {inventory.event_chain_count||0} chains</span></div></section>
         <section className="card"><div className="section-title"><h2>Scenes</h2><button className="icon" title="Add scene" onClick={openSceneForm}><Plus size={16}/></button></div>{(project?.scenes||[]).map(s=><button className={`row ${s.id===scene?.id?'active':''}`} key={s.id} onClick={()=>{setSceneId(s.id); setActorId(null);}}><span>{s.name}</span><small>{s.actors?.length||0} actors · {s.triggers?.length||0} triggers</small><ChevronRight size={16}/></button>)}</section>
-        <section className="card"><div className="section-title"><h2><ImageIcon size={16}/> Assets</h2></div>{(project?.sprites||[]).map(s=><button className="asset" key={s.id} onClick={()=>setView('sprite')}>{s.name}<small>Sprite · {s.width}×{s.height}</small></button>)}</section>
+        <section className="card"><div className="section-title"><h2><ImageIcon size={16}/> Assets</h2></div>{(project?.sprites||[]).map(s=><button className="asset asset-spr" key={s.id} onClick={()=>setView('sprite')}><SpriteThumb sprite={s} scale={2}/><span>{s.name}<small>Sprite · {s.width}×{s.height}</small></span></button>)}</section>
       </aside>
       <main className="main">
         <section className="card"><div className="tabs"><Tool icon={Map} label="Scene" active={view==='scene'} onClick={()=>setView('scene')}/><Tool icon={Palette} label="Sprite" active={view==='sprite'} onClick={()=>setView('sprite')}/><Tool icon={GitBranch} label="Events" active={view==='events'} onClick={()=>setView('events')}/><Tool icon={Blocks} label="Blocks" active={view==='blocks'} onClick={()=>setView('blocks')}/><Tool icon={MonitorPlay} label="ROM Preview" active={view==='preview'} onClick={()=>setView('preview')}/></div></section>
-        {view==='scene'&&<SceneCanvas scene={scene} selectedActor={actor?.id} setSelectedActor={setActorId} onMoveActor={onMoveActor} onAddActor={openActorForm}/>}
+        {view==='scene'&&<SceneCanvas scene={scene} sprites={project?.sprites} selectedActor={actor?.id} setSelectedActor={setActorId} onMoveActor={onMoveActor} onAddActor={openActorForm}/>}
         {view==='sprite'&&<SpriteEditor sprite={sprite} onChange={onPaintSprite}/>}
         {(view==='events'||view==='blocks')&&<EventEditor chains={project?.eventChains||[]} chainId={chainId} setChainId={setChainId} blocks={blocks} onAddChain={openChainForm} onAddStep={onAddStep} onDeleteStep={onDeleteStep}/>}
         {view==='preview'&&<RomPreview romUrl={rom?.url} romName={rom?.name} onPick={pickRom}/>}
