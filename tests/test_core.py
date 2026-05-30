@@ -108,6 +108,19 @@ def test_poachermon_launch_template_is_complete_and_converts():
     assert json.loads(web_copy.read_text()) == json.loads(poach.read_text())
 
 
+def test_poachermon_plays_through_to_a_win():
+    # The desktop simulator must run the launch template end to end: visit every
+    # scene in order and reach the win state (a Poachermon rescued, poacher caught).
+    from snesstudio import sim
+    run = sim.play_from_file('examples/poachermon/project.snesproj')
+    assert run.scenes_visited == ['title', 'station', 'savannah', 'chase', 'rescue']
+    assert run.variables.get('rescued') == 1
+    assert run.flags.get('poacher_caught') is True
+    text = run.text()
+    assert "Gotta Save 'Em All!" in text
+    assert "The Throttle of Justice" in text  # final beat reached
+
+
 def test_project_loads_and_inventory():
     project = load_project(PROJECT)
     inv = inventory(project)

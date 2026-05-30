@@ -2232,7 +2232,8 @@
       "id": "title_intro",
       "name": "Title Screen",
       "trigger": {
-        "type": "scene_start"
+        "type": "scene_start",
+        "scene": "title"
       },
       "steps": [
         {
@@ -2335,7 +2336,8 @@
       "id": "savannah_intro",
       "name": "Arrive in the Savannah",
       "trigger": {
-        "type": "scene_start"
+        "type": "scene_start",
+        "scene": "savannah"
       },
       "steps": [
         {
@@ -2474,7 +2476,8 @@
       "id": "chase_intro",
       "name": "The Chase Begins",
       "trigger": {
-        "type": "scene_start"
+        "type": "scene_start",
+        "scene": "chase"
       },
       "steps": [
         {
@@ -2537,7 +2540,8 @@
       "id": "rescue_intro",
       "name": "Cornered at Last",
       "trigger": {
-        "type": "scene_start"
+        "type": "scene_start",
+        "scene": "rescue"
       },
       "steps": [
         {

@@ -56,6 +56,7 @@ class Trigger(BaseModel):
     actor: str | None = None
     zone: str | None = None
     button: Button | None = None
+    scene: str | None = None
 
 class EventStep(BaseModel):
     id: str

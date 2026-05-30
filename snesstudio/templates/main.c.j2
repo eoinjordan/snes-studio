@@ -19,6 +19,9 @@ void load_scene(const char *scene_id) {
 {% for actor in scene.actors %}
         snesstudio_place_actor("{{ actor.id }}", "{{ actor.name }}", {{ actor.x }}, {{ actor.y }}, "{{ actor.sprite or '' }}");
 {% endfor %}
+{% for chain in project.eventChains %}{% if chain.trigger and chain.trigger.type == 'scene_start' and chain.trigger.scene == scene.id %}
+        event_{{ chain.id|c_ident }}();  /* scene_start */
+{% endif %}{% endfor %}
         return;
     }
 {% endfor %}
@@ -28,8 +31,8 @@ int main(void) {
     snesstudio_init("{{ project.rom.title }}");
     load_scene("{{ project.scenes[0].id if project.scenes else 'start' }}");
 {% for chain in project.eventChains %}
-{% if chain.trigger and chain.trigger.type == 'scene_start' %}
-    event_{{ chain.id|c_ident }}();
+{% if chain.trigger and chain.trigger.type == 'scene_start' and not chain.trigger.scene %}
+    event_{{ chain.id|c_ident }}();  /* unbound scene_start: runs on first scene */
 {% endif %}
 {% endfor %}
     while (1) {

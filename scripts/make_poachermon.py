@@ -300,7 +300,7 @@ def main() -> None:
             },
         ],
         "eventChains": [
-            {"id": "title_intro", "name": "Title Screen", "trigger": {"type": "scene_start"}, "steps": [
+            {"id": "title_intro", "name": "Title Screen", "trigger": {"type": "scene_start", "scene": "title"}, "steps": [
                 {"id": "ti_1", "type": "show_text", "text": "* POACHERMON *"},
                 {"id": "ti_2", "type": "show_text", "text": "Gotta Save 'Em All!"},
                 {"id": "ti_3", "type": "show_text", "text": "A park ranger vs. one very rude poacher."},
@@ -317,7 +317,7 @@ def main() -> None:
             {"id": "head_out", "name": "Head to the Reserve", "trigger": {"type": "zone_enter", "zone": "to_savannah"}, "steps": [
                 {"id": "ho_go", "type": "change_scene", "scene": "savannah"},
             ]},
-            {"id": "savannah_intro", "name": "Arrive in the Savannah", "trigger": {"type": "scene_start"}, "steps": [
+            {"id": "savannah_intro", "name": "Arrive in the Savannah", "trigger": {"type": "scene_start", "scene": "savannah"}, "steps": [
                 {"id": "si_check", "type": "if_flag", "flag": "camera_set",
                  "then": [{"id": "si_yes", "type": "show_text", "text": "The reserve is quiet... too quiet. Find the creatures and the poacher."}],
                  "else": [{"id": "si_no", "type": "show_text", "text": "You forgot the camera traps, but onward!"}]},
@@ -340,7 +340,7 @@ def main() -> None:
                 {"id": "mp_quip", "type": "show_text", "text": "Ranger: Pull over before I quote Stobbart."},
                 {"id": "mp_go", "type": "change_scene", "scene": "chase"},
             ]},
-            {"id": "chase_intro", "name": "The Chase Begins", "trigger": {"type": "scene_start"}, "steps": [
+            {"id": "chase_intro", "name": "The Chase Begins", "trigger": {"type": "scene_start", "scene": "chase"}, "steps": [
                 {"id": "ci_check", "type": "if_flag", "flag": "found_poacher",
                  "then": [{"id": "ci_yes", "type": "show_text", "text": "Floor it! Catch the jeep before it escapes."}],
                  "else": [{"id": "ci_no", "type": "show_text", "text": "A wild getaway begins!"}]},
@@ -350,7 +350,7 @@ def main() -> None:
                 {"id": "cq_2", "type": "show_text", "text": "Poacher: Not the Broken Sword speeches!"},
                 {"id": "cq_go", "type": "change_scene", "scene": "rescue"},
             ]},
-            {"id": "rescue_intro", "name": "Cornered at Last", "trigger": {"type": "scene_start"}, "steps": [
+            {"id": "rescue_intro", "name": "Cornered at Last", "trigger": {"type": "scene_start", "scene": "rescue"}, "steps": [
                 {"id": "ri_1", "type": "show_text", "text": "You cornered the poacher. Talk to them to confiscate the snare."},
             ]},
             {"id": "confiscate", "name": "Confiscate the Snare", "trigger": {"type": "actor_interact", "actor": "poacher_r"}, "steps": [

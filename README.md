@@ -71,6 +71,7 @@ Open the Vite URL. If the backend is running, the UI uses local builder mode. If
 ```bash
 snes-studio validate examples/hello-human/project.snesproj --json
 snes-studio inventory examples/hello-human/project.snesproj --json
+snes-studio play examples/poachermon/project.snesproj   # play the game end to end in the terminal
 snes-studio export-c examples/hello-human/project.snesproj build/generated/hello-human --json
 snes-studio make:rom examples/hello-human/project.snesproj build/hello-human.sfc --skip-build --json
 scripts/validate-rom.sh build/hello-human.sfc

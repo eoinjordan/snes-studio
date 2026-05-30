@@ -136,6 +136,19 @@ def cmd_blocks(args):
     print_result(block_palette(), args.json)
 
 
+def cmd_play(args):
+    from .sim import play_auto
+    project = load_project(args.project)
+    run = play_auto(project, emit=None if args.json else print)
+    if args.json:
+        print(json.dumps({
+            "scenes_visited": run.scenes_visited,
+            "flags": run.flags,
+            "variables": run.variables,
+            "lines": run.lines,
+        }, indent=2))
+
+
 def cmd_serve(args):
     try:
         from .server import run_server
@@ -162,6 +175,7 @@ def build_parser():
     sp = sub.add_parser("review-patch"); sp.add_argument("patch"); common(sp); sp.set_defaults(func=cmd_review_patch)
     sp = sub.add_parser("apply-patch"); sp.add_argument("project"); sp.add_argument("patch"); common(sp); sp.set_defaults(func=cmd_apply_patch)
     sp = sub.add_parser("blocks"); common(sp); sp.set_defaults(func=cmd_blocks)
+    sp = sub.add_parser("play", help="Play the project end to end in the terminal (desktop simulator)"); sp.add_argument("project"); common(sp); sp.set_defaults(func=cmd_play)
 
     sp = sub.add_parser("add-scene"); sp.add_argument("project"); sp.add_argument("--id", required=True); sp.add_argument("--name", required=True); sp.add_argument("--background"); common(sp); sp.set_defaults(func=cmd_add_scene)
     sp = sub.add_parser("add-actor"); sp.add_argument("project"); sp.add_argument("--scene", required=True); sp.add_argument("--id", required=True); sp.add_argument("--name", required=True); sp.add_argument("--x", type=int, default=0); sp.add_argument("--y", type=int, default=0); sp.add_argument("--sprite"); common(sp); sp.set_defaults(func=cmd_add_actor)
