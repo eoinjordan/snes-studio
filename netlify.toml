@@ -1,0 +1,15 @@
+# Netlify deploy config for the SNES Studio web UI (online demo mode).
+# The UI lives in web/ as a Vite app; the Python backend is not deployed here.
+[build]
+  base = "web"
+  command = "npm install && npm run build"
+  publish = "dist"
+
+# Single-page app: serve index.html for any unknown path.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[build.environment]
+  NODE_VERSION = "20"

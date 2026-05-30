@@ -1,0 +1,23 @@
+#ifndef SNESSTUDIO_RUNTIME_H
+#define SNESSTUDIO_RUNTIME_H
+
+int snesstudio_str_eq(const char *a, const char *b);
+void snesstudio_init(const char *title);
+void snesstudio_update(void);
+void snesstudio_log(const char *message);
+void snesstudio_set_scene(const char *scene_id, const char *scene_name);
+void snesstudio_place_actor(const char *actor_id, const char *name, int x, int y, const char *sprite);
+void snesstudio_show_text(const char *text);
+void snesstudio_change_scene(const char *scene_id);
+void snesstudio_move_actor(const char *actor_id, int dx, int dy);
+void snesstudio_face_player(const char *actor_id);
+void snesstudio_set_flag(const char *flag, int value);
+int snesstudio_get_flag(const char *flag);
+void snesstudio_wait(int frames);
+void snesstudio_play_sound(const char *sound);
+void snesstudio_play_music(const char *music);
+void snesstudio_hide_actor(const char *actor_id);
+void snesstudio_show_actor(const char *actor_id);
+void snesstudio_set_sprite_frame(const char *actor_id, const char *frame);
+
+#endif

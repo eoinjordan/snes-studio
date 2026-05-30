@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "snes-studio"
+version = "1.0.0"
+description = "Human-in-the-loop, agent-assisted SNES game studio for kids and mentors."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Eoin Jordan" }]
+keywords = ["snes", "homebrew", "education", "agentic", "blockly", "retro", "games"]
+dependencies = [
+  "pydantic>=2.5",
+  "jinja2>=3.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.5"]
+server = ["fastapi>=0.110", "uvicorn>=0.27"]
+
+[project.scripts]
+snes-studio = "snesstudio.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["snesstudio*"]
+
+[tool.setuptools.package-data]
+snesstudio = ["templates/*.j2"]

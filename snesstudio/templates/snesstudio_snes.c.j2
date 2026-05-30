@@ -1,0 +1,139 @@
+#include <snes.h>
+#include <string.h>
+#include "snesstudio_assets.h"
+#include "snesstudio_maps.h"
+#include "snesstudio_runtime.h"
+
+/*
+ * Generated SNES runtime engine (PVSnesLib) — adventure / top-down overworld.
+ *
+ * This replaces the desktop printf simulation (snesstudio_runtime.c) for real
+ * ROM builds. It loads a scene's background tilemap, draws the player sprite,
+ * reads the controller, walks the player with tilemap collision, and renders a
+ * dialogue box for show_text.
+ *
+ * Targets PVSnesLib. A few PPU/OAM helper signatures vary slightly between
+ * PVSnesLib versions — if a call does not match your installed headers, see the
+ * "PVSnesLib toolchain setup" section of the README; the intent of each call is
+ * commented so it is easy to adjust.
+ */
+
+{% set ns = namespace(player=None) %}
+{% if project.scenes %}{% for a in project.scenes[0].actors %}{% if a.sprite and ns.player is none %}{% set ns.player = a %}{% endif %}{% endfor %}{% endif %}
+{% set player_sprite = (ns.player.sprite | c_ident) if ns.player else (project.sprites[0].id | c_ident if project.sprites else 'kid') %}
+
+#define BG_WALL_CHAR 3
+#define WALK_SPEED   1
+#define SPR_SIZE     16
+
+static const unsigned short *current_map = map_{{ (project.scenes[0].id | c_ident) if project.scenes else 'school' }};
+static short player_x = {{ ns.player.x if ns.player else 120 }};
+static short player_y = {{ ns.player.y if ns.player else 112 }};
+
+/* simple story flags */
+#define MAX_FLAGS 32
+static char flag_names[MAX_FLAGS][24];
+static unsigned char flag_vals[MAX_FLAGS];
+static int flag_count = 0;
+
+int snesstudio_str_eq(const char *a, const char *b) { return strcmp(a, b) == 0; }
+
+/* ---- collision against the background tilemap ---- */
+static int tile_solid(short px, short py) {
+    short tx = px >> 3, ty = py >> 3;
+    if (tx < 0 || ty < 0 || tx >= MAP_W || ty >= MAP_H) return 1;
+    return (current_map[ty * MAP_W + tx] & 0x03ff) == BG_WALL_CHAR;
+}
+static int blocked(short px, short py) {
+    return tile_solid(px, py) || tile_solid(px + SPR_SIZE - 1, py)
+        || tile_solid(px, py + SPR_SIZE - 1) || tile_solid(px + SPR_SIZE - 1, py + SPR_SIZE - 1);
+}
+
+/* ---- runtime API ---- */
+void snesstudio_log(const char *message) { (void)message; }
+
+void snesstudio_init(const char *title) {
+    (void)title;
+    consoleInit();
+    setMode(BG_MODE1, 0);
+    /* Background: built-in flat tileset + palette into BG1. */
+    bgInitTileSet(1, (unsigned char *)&gfx_bgtiles, (unsigned char *)&pal_bg, 0,
+                  BG_TILESET_TILES * 32, 16 * 2, BG_16COLORS, 0x2000);
+    /* Player sprite graphics into OBJ memory + sprite palette. */
+    oamInitGfxSet((unsigned char *)&gfx_{{ player_sprite }}_tiles, GFX_{{ player_sprite | upper }}_TILES * 32,
+                  (unsigned char *)&pal_{{ player_sprite }}, 16 * 2, 0, 0x0000, OBJ_SIZE16_L16);
+    setScreenOn();
+}
+
+void snesstudio_set_scene(const char *scene_id, const char *scene_name) {
+    (void)scene_name;
+{% for scene in project.scenes %}
+    if (snesstudio_str_eq(scene_id, "{{ scene.id }}")) {
+        current_map = map_{{ scene.id | c_ident }};
+        bgInitMapSet(1, (unsigned char *)current_map, MAP_W * MAP_H * 2, SC_32x32, 0x0000);
+        return;
+    }
+{% endfor %}
+}
+
+void snesstudio_place_actor(const char *actor_id, const char *name, int x, int y, const char *sprite) {
+    (void)actor_id; (void)name; (void)sprite;
+{% if ns.player %}
+    if (snesstudio_str_eq(actor_id, "{{ ns.player.id }}")) { player_x = x; player_y = y; }
+{% endif %}
+}
+
+/* dialogue box: draw text and wait for A */
+void snesstudio_show_text(const char *text) {
+    consoleDrawText(1, 24, (char *)text);
+    consoleDrawText(1, 26, (char *)"  (press A)");
+    while (1) {
+        WaitForVBlank();
+        if (padsCurrent(0) & KEY_A) break;
+    }
+    /* clear the two text rows */
+    consoleDrawText(1, 24, (char *)"                                ");
+    consoleDrawText(1, 26, (char *)"                                ");
+}
+
+void snesstudio_change_scene(const char *scene_id) { snesstudio_set_scene(scene_id, scene_id); }
+void snesstudio_move_actor(const char *actor_id, int dx, int dy) { (void)actor_id; player_x += dx; player_y += dy; }
+void snesstudio_face_player(const char *actor_id) { (void)actor_id; }
+
+void snesstudio_set_flag(const char *flag, int value) {
+    for (int i = 0; i < flag_count; i++)
+        if (snesstudio_str_eq(flag_names[i], flag)) { flag_vals[i] = value ? 1 : 0; return; }
+    if (flag_count < MAX_FLAGS) {
+        strncpy(flag_names[flag_count], flag, 23);
+        flag_vals[flag_count] = value ? 1 : 0;
+        flag_count++;
+    }
+}
+int snesstudio_get_flag(const char *flag) {
+    for (int i = 0; i < flag_count; i++)
+        if (snesstudio_str_eq(flag_names[i], flag)) return flag_vals[i];
+    return 0;
+}
+
+void snesstudio_wait(int frames) { for (int i = 0; i < frames; i++) WaitForVBlank(); }
+void snesstudio_play_sound(const char *sound) { (void)sound; }
+void snesstudio_play_music(const char *music) { (void)music; }
+void snesstudio_hide_actor(const char *actor_id) { (void)actor_id; }
+void snesstudio_show_actor(const char *actor_id) { (void)actor_id; }
+void snesstudio_set_sprite_frame(const char *actor_id, const char *frame) { (void)actor_id; (void)frame; }
+
+/* one overworld frame: read pad, walk with collision, draw player */
+void snesstudio_update(void) {
+    unsigned short pad = padsCurrent(0);
+    short nx = player_x, ny = player_y;
+    if (pad & KEY_LEFT)  nx -= WALK_SPEED;
+    if (pad & KEY_RIGHT) nx += WALK_SPEED;
+    if (pad & KEY_UP)    ny -= WALK_SPEED;
+    if (pad & KEY_DOWN)  ny += WALK_SPEED;
+    if (!blocked(nx, player_y)) player_x = nx;
+    if (!blocked(player_x, ny)) player_y = ny;
+
+    oamSet(0, player_x, player_y, 3, 0, 0, 0, 0);
+    oamSetEx(0, OBJ_SMALL, OBJ_SHOW);
+    WaitForVBlank();
+}

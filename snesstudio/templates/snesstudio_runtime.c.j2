@@ -1,0 +1,27 @@
+#include "snesstudio_runtime.h"
+#include <stdio.h>
+#include <string.h>
+
+/*
+ * Stub runtime. Replace these functions with PVSnesLib-backed implementations
+ * as the SNES runtime matures.
+ */
+
+int snesstudio_str_eq(const char *a, const char *b) { return strcmp(a, b) == 0; }
+void snesstudio_init(const char *title) { printf("SNES Studio init: %s\n", title); }
+void snesstudio_update(void) { /* wait for vblank in real runtime */ }
+void snesstudio_log(const char *message) { printf("%s\n", message); }
+void snesstudio_set_scene(const char *scene_id, const char *scene_name) { printf("Scene %s: %s\n", scene_id, scene_name); }
+void snesstudio_place_actor(const char *actor_id, const char *name, int x, int y, const char *sprite) { printf("Actor %s (%s) at %d,%d sprite=%s\n", actor_id, name, x, y, sprite); }
+void snesstudio_show_text(const char *text) { printf("TEXT: %s\n", text); }
+void snesstudio_change_scene(const char *scene_id) { printf("Change scene: %s\n", scene_id); }
+void snesstudio_move_actor(const char *actor_id, int dx, int dy) { printf("Move actor %s by %d,%d\n", actor_id, dx, dy); }
+void snesstudio_face_player(const char *actor_id) { printf("Face player: %s\n", actor_id); }
+void snesstudio_set_flag(const char *flag, int value) { printf("Set flag %s=%d\n", flag, value); }
+int snesstudio_get_flag(const char *flag) { printf("Get flag %s\n", flag); return 0; }
+void snesstudio_wait(int frames) { printf("Wait %d frames\n", frames); }
+void snesstudio_play_sound(const char *sound) { printf("Play sound %s\n", sound); }
+void snesstudio_play_music(const char *music) { printf("Play music %s\n", music); }
+void snesstudio_hide_actor(const char *actor_id) { printf("Hide actor %s\n", actor_id); }
+void snesstudio_show_actor(const char *actor_id) { printf("Show actor %s\n", actor_id); }
+void snesstudio_set_sprite_frame(const char *actor_id, const char *frame) { printf("Set actor %s frame %s\n", actor_id, frame); }

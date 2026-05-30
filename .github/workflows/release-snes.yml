@@ -1,0 +1,21 @@
+name: Release SNES Studio Artifact
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: pip install -e '.[dev]'
+      - run: snes-studio make:rom examples/hello-human/project.snesproj build/hello-human.sfc --skip-build --json
+      - run: scripts/validate-rom.sh build/hello-human.sfc
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: build/hello-human.sfc
+          body: |
+            SNES Studio placeholder artifact release. This proves the release workflow. Real playable ROM output requires the PVSnesLib runtime milestone.

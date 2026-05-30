@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+build/
+dist/
+*.egg-info/
+web/node_modules/
+web/dist/
+.DS_Store
+.env
+*.sfc
+*.smc
+!examples/**/*.sfc
