@@ -94,7 +94,11 @@ def test_poachermon_launch_template_is_complete_and_converts():
     project = load_project(poach)
     assert project.name == 'Poachermon'
     inv = inventory(project)
-    assert inv['scene_count'] == 4 and inv['event_chain_count'] >= 12
+    assert inv['scene_count'] == 5 and inv['event_chain_count'] >= 14
+    # First scene is the title screen with a scene_start intro chain.
+    assert project.scenes[0].id == 'title'
+    assert any(c.id == 'title_intro' and c.trigger and c.trigger.type == 'scene_start'
+               for c in project.eventChains)
     for sprite_id in ('ranger', 'poacher', 'elephant', 'rhino', 'lioncub', 'bird'):
         sprite = next(s for s in project.sprites if s.id == sprite_id)
         tiles = b"".join(f["tiles"] for f in assets.sprite_assets(sprite)["frames"])

@@ -227,6 +227,7 @@ def main() -> None:
                    [BIRD]),
         ],
         "assets": [
+            {"id": "title_bg", "name": "Title Screen", "type": "background", "path": "assets/backgrounds/title.png"},
             {"id": "station_bg", "name": "Ranger Station", "type": "background", "path": "assets/backgrounds/station.png"},
             {"id": "savannah_bg", "name": "Savannah Map", "type": "background", "path": "assets/backgrounds/savannah.png"},
             {"id": "chase_bg", "name": "Chase Road", "type": "background", "path": "assets/backgrounds/chase.png"},
@@ -234,6 +235,18 @@ def main() -> None:
             {"id": "alert", "name": "Alert", "type": "sound", "path": "assets/sounds/alert.wav"},
         ],
         "scenes": [
+            {
+                "id": "title", "name": "Title Screen", "background": "title_bg",
+                "actors": [
+                    {"id": "title_ranger", "name": "Ranger", "x": 88, "y": 150, "sprite": "ranger", "events": {}},
+                    {"id": "title_elephant", "name": "Elephant", "x": 150, "y": 144, "sprite": "elephant", "events": {}},
+                    {"id": "title_bird", "name": "Bird", "x": 60, "y": 56, "sprite": "bird", "events": {}},
+                ],
+                "collision": [],
+                "triggers": [
+                    {"id": "press_start", "name": "Press Start", "x": 0, "y": 0, "w": 256, "h": 224, "event": "start_game"},
+                ],
+            },
             {
                 "id": "station", "name": "Ranger Station", "background": "station_bg",
                 "actors": [
@@ -287,6 +300,15 @@ def main() -> None:
             },
         ],
         "eventChains": [
+            {"id": "title_intro", "name": "Title Screen", "trigger": {"type": "scene_start"}, "steps": [
+                {"id": "ti_1", "type": "show_text", "text": "* POACHERMON *"},
+                {"id": "ti_2", "type": "show_text", "text": "Gotta Save 'Em All!"},
+                {"id": "ti_3", "type": "show_text", "text": "A park ranger vs. one very rude poacher."},
+                {"id": "ti_4", "type": "show_text", "text": "Press A to begin your patrol."},
+            ]},
+            {"id": "start_game", "name": "Start the Game", "trigger": {"type": "zone_enter", "zone": "press_start"}, "steps": [
+                {"id": "sg_go", "type": "change_scene", "scene": "station"},
+            ]},
             {"id": "briefing", "name": "Professor Tulip's Briefing", "trigger": {"type": "actor_interact", "actor": "tulip"}, "steps": [
                 {"id": "br_1", "type": "show_text", "text": "Prof. Tulip: Set camera traps. Try to look heroic."},
                 {"id": "br_set", "type": "set_flag", "flag": "camera_set", "value": True},

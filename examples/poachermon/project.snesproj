@@ -17,6 +17,52 @@
   },
   "scenes": [
     {
+      "id": "title",
+      "name": "Title Screen",
+      "background": "title_bg",
+      "actors": [
+        {
+          "id": "title_ranger",
+          "name": "Ranger",
+          "x": 88,
+          "y": 150,
+          "sprite": "ranger",
+          "direction": "down",
+          "events": {}
+        },
+        {
+          "id": "title_elephant",
+          "name": "Elephant",
+          "x": 150,
+          "y": 144,
+          "sprite": "elephant",
+          "direction": "down",
+          "events": {}
+        },
+        {
+          "id": "title_bird",
+          "name": "Bird",
+          "x": 60,
+          "y": 56,
+          "sprite": "bird",
+          "direction": "down",
+          "events": {}
+        }
+      ],
+      "collision": [],
+      "triggers": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 256,
+          "h": 224,
+          "id": "press_start",
+          "name": "Press Start",
+          "event": "start_game"
+        }
+      ]
+    },
+    {
       "id": "station",
       "name": "Ranger Station",
       "background": "station_bg",
@@ -2183,6 +2229,60 @@
   ],
   "eventChains": [
     {
+      "id": "title_intro",
+      "name": "Title Screen",
+      "trigger": {
+        "type": "scene_start"
+      },
+      "steps": [
+        {
+          "id": "ti_1",
+          "type": "show_text",
+          "text": "* POACHERMON *",
+          "then": [],
+          "else": []
+        },
+        {
+          "id": "ti_2",
+          "type": "show_text",
+          "text": "Gotta Save 'Em All!",
+          "then": [],
+          "else": []
+        },
+        {
+          "id": "ti_3",
+          "type": "show_text",
+          "text": "A park ranger vs. one very rude poacher.",
+          "then": [],
+          "else": []
+        },
+        {
+          "id": "ti_4",
+          "type": "show_text",
+          "text": "Press A to begin your patrol.",
+          "then": [],
+          "else": []
+        }
+      ]
+    },
+    {
+      "id": "start_game",
+      "name": "Start the Game",
+      "trigger": {
+        "type": "zone_enter",
+        "zone": "press_start"
+      },
+      "steps": [
+        {
+          "id": "sg_go",
+          "type": "change_scene",
+          "scene": "station",
+          "then": [],
+          "else": []
+        }
+      ]
+    },
+    {
       "id": "briefing",
       "name": "Professor Tulip's Briefing",
       "trigger": {
@@ -2515,6 +2615,12 @@
     }
   ],
   "assets": [
+    {
+      "id": "title_bg",
+      "name": "Title Screen",
+      "type": "background",
+      "path": "assets/backgrounds/title.png"
+    },
     {
       "id": "station_bg",
       "name": "Ranger Station",
