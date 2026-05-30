@@ -83,12 +83,16 @@ def export_c(project_path: str | Path, out_dir: str | Path) -> dict[str, Any]:
     env = Environment(loader=FileSystemLoader(str(TEMPLATE_DIR)), autoescape=select_autoescape(default=False))
     env.filters["c_ident"] = c_ident
     env.filters["chain_body"] = chain_body
+    # Note: the SNES toolchain (PVSnesLib snes_rules) compiles every .c in the
+    # build dir, so we emit only the real SNES engine here — not the desktop
+    # printf stub, which would clash (duplicate symbols + no printf on SNES).
+    # Desktop logic testing now lives in `snes-studio play` (snesstudio/sim.py).
     files = {
         "main.c": "main.c.j2",
-        "snesstudio_runtime.c": "snesstudio_runtime.c.j2",
         "snesstudio_snes.c": "snesstudio_snes.c.j2",
         "snesstudio_runtime.h": "snesstudio_runtime.h.j2",
         "Makefile": "Makefile.j2",
+        "hdr.asm": "hdr.asm.j2",
         "README.generated.md": "README.generated.md.j2",
     }
     written = []

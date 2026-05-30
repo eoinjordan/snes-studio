@@ -61,7 +61,7 @@ void snesstudio_init(const char *title) {
                   BG_TILESET_TILES * 32, 16 * 2, BG_16COLORS, 0x2000);
     /* Player sprite graphics into OBJ memory + sprite palette. */
     oamInitGfxSet((unsigned char *)&gfx_{{ player_sprite }}_tiles, GFX_{{ player_sprite | upper }}_TILES * 32,
-                  (unsigned char *)&pal_{{ player_sprite }}, 16 * 2, 0, 0x0000, OBJ_SIZE16_L16);
+                  (unsigned char *)&pal_{{ player_sprite }}, 16 * 2, 0, 0x0000, OBJ_SIZE16_L32);
     setScreenOn();
 }
 
@@ -101,7 +101,8 @@ void snesstudio_move_actor(const char *actor_id, int dx, int dy) { (void)actor_i
 void snesstudio_face_player(const char *actor_id) { (void)actor_id; }
 
 void snesstudio_set_flag(const char *flag, int value) {
-    for (int i = 0; i < flag_count; i++)
+    int i;
+    for (i = 0; i < flag_count; i++)
         if (snesstudio_str_eq(flag_names[i], flag)) { flag_vals[i] = value ? 1 : 0; return; }
     if (flag_count < MAX_FLAGS) {
         strncpy(flag_names[flag_count], flag, 23);
@@ -110,12 +111,13 @@ void snesstudio_set_flag(const char *flag, int value) {
     }
 }
 int snesstudio_get_flag(const char *flag) {
-    for (int i = 0; i < flag_count; i++)
+    int i;
+    for (i = 0; i < flag_count; i++)
         if (snesstudio_str_eq(flag_names[i], flag)) return flag_vals[i];
     return 0;
 }
 
-void snesstudio_wait(int frames) { for (int i = 0; i < frames; i++) WaitForVBlank(); }
+void snesstudio_wait(int frames) { int i; for (i = 0; i < frames; i++) WaitForVBlank(); }
 void snesstudio_play_sound(const char *sound) { (void)sound; }
 void snesstudio_play_music(const char *music) { (void)music; }
 void snesstudio_hide_actor(const char *actor_id) { (void)actor_id; }
