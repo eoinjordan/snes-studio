@@ -65,19 +65,23 @@ void snesstudio_log(const char *message) { (void)message; }
 
 void snesstudio_init(const char *title) {
     (void)title;
+    /* VRAM layout (word addresses), chosen to NOT overlap the text console that
+       consoleInit() sets up in low VRAM — overlap caused the striped background:
+         text console (consoleInit) : ~0x0000-0x1000
+         BG1 game map               : 0x1000
+         BG1 game tiles             : 0x4000
+         OBJ (sprite) tiles         : 0x6000
+       This mirrors PVSnesLib's Mode1Scroll example (background + text together). */
     consoleInit();
-    setMode(BG_MODE1, 0);
-    /* Background: built-in flat tileset + palette into BG1. */
     bgInitTileSet(1, (unsigned char *)&gfx_bgtiles, (unsigned char *)&pal_bg, 0,
-                  BG_TILESET_TILES * 32, 16 * 2, BG_16COLORS, 0x2000);
-    /* Load the current scene map immediately so the initial frame renders a
-       valid background before any scene change happens. */
-    bgInitMapSet(1, (unsigned char *)current_map, MAP_W * MAP_H * 2, SC_32x32, 0x0000);
-    /* Player sprite graphics into OBJ memory + sprite palette.
-       OBJ tiles live at VRAM 0x6000 — clear of the BG map (0x0000) and BG
-       tiles (0x2000); overlapping them produced on-screen garbage. */
+                  BG_TILESET_TILES * 32, 16 * 2, BG_16COLORS, 0x4000);
+    bgInitMapSet(1, (unsigned char *)current_map, MAP_W * MAP_H * 2, SC_32x32, 0x1000);
     oamInitGfxSet((unsigned char *)&gfx_{{ player_sprite }}_tiles, GFX_{{ player_sprite | upper }}_TILES * 32,
                   (unsigned char *)&pal_{{ player_sprite }}, 16 * 2, 0, 0x6000, OBJ_SIZE16_L32);
+    oamSet(0, player_x, player_y, 3, 0, 0, 0, 0);
+    oamSetEx(0, OBJ_SMALL, OBJ_SHOW);
+    oamSetVisible(0, OBJ_SHOW);   /* required for the sprite to actually draw */
+    setMode(BG_MODE1, 0);
     setScreenOn();
 }
 
@@ -87,7 +91,7 @@ void snesstudio_set_scene(const char *scene_id, const char *scene_name) {
 {% for scene in project.scenes %}
     if (snesstudio_str_eq(scene_id, "{{ scene.id }}")) {
         current_map = map_{{ scene.id | c_ident }};
-        bgInitMapSet(1, (unsigned char *)current_map, MAP_W * MAP_H * 2, SC_32x32, 0x0000);
+        bgInitMapSet(1, (unsigned char *)current_map, MAP_W * MAP_H * 2, SC_32x32, 0x1000);
         return;
     }
 {% endfor %}
@@ -215,5 +219,6 @@ void snesstudio_update(void) {
 
     oamSet(0, player_x, player_y, 3, 0, 0, 0, 0);
     oamSetEx(0, OBJ_SMALL, OBJ_SHOW);
+    oamSetVisible(0, OBJ_SHOW);
     WaitForVBlank();
 }
