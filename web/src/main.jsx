@@ -416,8 +416,8 @@ function App(){
   const [rom,setRom]=useState(null); // {url, name}
   const fileInput = useRef(null);
   const romInput = useRef(null);
-  const releaseRepo = (import.meta.env.VITE_GITHUB_REPO || '').trim();
-  const releaseBase = releaseRepo ? `https://github.com/${releaseRepo}/releases/latest/download` : `${import.meta.env.BASE_URL}downloads`;
+  const releaseRepo = (import.meta.env.VITE_GITHUB_REPO || 'eoinjordan/snes-studio').trim();
+  const releaseBase = `https://github.com/${releaseRepo}/releases/latest/download`;
   const winInstaller = `${releaseBase}/SNES-Studio-Setup.exe`;
   const macInstaller = `${releaseBase}/SNES-Studio-macOS.pkg`;
 
