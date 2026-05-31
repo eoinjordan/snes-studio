@@ -582,6 +582,7 @@ function App(){
   const [gallery,setGallery]=useState(false);
   const [aiSettings,setAiSettings]=useState(false);
   const [aiOn,setAiOn]=useState(false);
+  const [toolStatus,setToolStatus]=useState(null);
   useEffect(()=>{ try{ setAiOn(!!localStorage.getItem('snesstudio_llm_key')); }catch{} },[]);
   const fileInput = useRef(null);
   const romInput = useRef(null);
@@ -590,7 +591,7 @@ function App(){
   const winInstaller = `${releaseBase}/SNES-Studio-Setup.exe`;
   const macInstaller = `${releaseBase}/SNES-Studio-macOS.pkg`;
 
-  function applySnap(s){ setMode(s.mode); setProject(s.project); setInventory(s.inventory); setBlocks(s.blocks); }
+  function applySnap(s){ setMode(s.mode); setProject(s.project); setInventory(s.inventory); setBlocks(s.blocks); client.current.toolchain().then(setToolStatus).catch(()=>{}); }
   useEffect(()=>{ client.current=new StudioClient(); client.current.boot().then(s=>{ applySnap(s); setSceneId(s.project?.scenes?.[0]?.id); setChainId(s.project?.eventChains?.[0]?.id); setSpriteId(s.project?.sprites?.[0]?.id); setLog(s.mode==='backend'?`Backend connected: ${client.current.backendTarget()}`:'Online demo mode.'); }).catch(e=>setLog(e.message)); },[]);
 
   const scene = useMemo(()=>project?.scenes?.find(s=>s.id===sceneId)||project?.scenes?.[0], [project,sceneId]);
@@ -681,7 +682,16 @@ function App(){
   async function propose(){ try{ setLog(aiOn?'Asking the AI helper…':'Building a safe patch…'); const p=await client.current.propose(prompt); setPatch(p); setLog('Patch proposed. Review before applying.'); }catch(e){ setLog(`Helper error: ${e.message}`); } }
   async function apply(){ const proj = await client.current.applyPatch(patch); setPatch(null); const p = proj.project || client.current.project; setProject(p); setInventory(client.current.inventory(p)); setLog('Patch applied after human review.'); }
   async function exportC(){ try{ const r=await client.current.exportC(); setLog(`Generated ${r.files?.length||0} files.`);}catch(e){setLog(e.message);} }
-  async function build(){ try{ const r=await client.current.makeRom(); setLog(`ROM artifact: ${r.rom} (${r.bytes} bytes).`);}catch(e){setLog(e.message);} }
+  async function build(){
+    if(mode!=='backend'){ setLog('Building a playable ROM needs the offline app (Vercel/online can only edit + preview). Download the desktop app, or use the built-in Poachermon ROM.'); return; }
+    try{
+      setLog('Building ROM with PVSnesLib…');
+      const r=await client.current.makeRom();
+      if(r.placeholder){ setLog(`Built a placeholder (${r.bytes} bytes). Install PVSnesLib for a playable ROM — see Build Checks.`); return; }
+      setLog(`Built ${r.rom} (${r.bytes} bytes). Loading in ROM Preview…`);
+      setRom({ url: client.current.romUrl(r.rom), name: 'Built ROM' }); setView('preview');
+    }catch(e){ setLog(`Build failed: ${e.message}`); }
+  }
   function openProject(){ fileInput.current?.click(); }
   async function importSprite(sprite){
     const id = uniqueId(slug(sprite.name||'sprite'), (project?.sprites||[]).map(s=>s.id));
@@ -747,7 +757,13 @@ function App(){
           : <Inspector scene={scene} scenes={project?.scenes||[]} actor={actor} chains={project?.eventChains||[]} onUpdate={onUpdateActor} onDelete={onDeleteActor} onLinkActorScene={linkActorToScene}/>}
         <section className="card"><div className="section-title"><h2><Download size={18}/> Installers</h2></div><p className="hint">Download desktop installers from the latest release.</p><div className="two"><a className="btn secondary" href={winInstaller}><Download size={16}/>Windows</a><a className="btn secondary" href={macInstaller}><Download size={16}/>macOS</a></div></section>
         <section className="card"><div className="section-title"><h2><Wand2 size={18}/> Coding Helper</h2><div className="two"><Pill tone={aiOn?'good':'blue'}>{aiOn?'AI on':'offline'}</Pill><button className="icon" title="AI settings (API key)" onClick={()=>setAiSettings(true)}><Settings2 size={16}/></button></div></div><textarea value={prompt} onChange={e=>setPrompt(e.target.value)}/><Btn className="primary full" onClick={propose}><Wand2 size={16}/>{aiOn?'Ask AI for a patch':'Propose safe patch'}</Btn>{!aiOn?<p className="hint">Add an Anthropic API key in settings for real AI help.</p>:null}</section>
-        <section className="card"><div className="section-title"><h2><CheckCircle2 size={18}/> Build Checks</h2></div><p className="check"><CheckCircle2 size={14}/>Project schema valid</p><p className="check"><CheckCircle2 size={14}/>Event chains compile to C</p><p className="warn"><AlertTriangle size={14}/>Real SNES build needs PVSnesLib runtime</p></section>
+        <section className="card"><div className="section-title"><h2><CheckCircle2 size={18}/> Build Checks</h2></div><p className="check"><CheckCircle2 size={14}/>Project schema valid</p><p className="check"><CheckCircle2 size={14}/>Event chains compile to C</p>{
+  mode!=='backend'
+    ? <p className="warn"><AlertTriangle size={14}/>Online mode: edit & preview only. Build playable ROMs in the offline app.</p>
+    : toolStatus?.ready
+      ? <p className="check"><CheckCircle2 size={14}/>PVSnesLib ready — Build ROM makes a playable .sfc</p>
+      : <p className="warn"><AlertTriangle size={14}/>PVSnesLib not found — install it to build playable ROMs (see docs/TOOLCHAIN.md)</p>
+}</section>
         <section className="card"><h2><Users size={18}/> Human Review</h2><p><MessageSquare size={14}/> Kid or mentor approval required before helper patches apply.</p></section>
       </aside>
     </div></div>

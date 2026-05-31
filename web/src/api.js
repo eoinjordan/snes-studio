@@ -295,5 +295,10 @@ export class StudioClient {
     if (this.mode !== 'backend') throw new Error('Local builder required to build ROMs.');
     return this.fetchJson('/api/make-rom', { method: 'POST', body: JSON.stringify({ skip_build: false, out_file: 'build/web-preview.sfc' }) });
   }
+  async toolchain() {
+    if (this.mode !== 'backend') return { ready: false, online: true };
+    try { return await this.fetchJson('/api/toolchain'); } catch { return { ready: false }; }
+  }
+  romUrl(file = 'build/web-preview.sfc') { return `/api/rom?file=${encodeURIComponent(file)}&t=${Date.now()}`; }
   downloadProject() { const blob = new Blob([JSON.stringify(this.project, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `${(this.project?.name || 'project').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.snesproj`; a.click(); URL.revokeObjectURL(url); }
 }

@@ -82,7 +82,17 @@ def launch_window(url: str, project_path: Path, server: uvicorn.Server) -> None:
 
     tk.Label(root, text=APP_NAME, font=("Segoe UI", 18, "bold")).pack(pady=(18, 4))
     tk.Label(root, text="Local studio is running.", font=("Segoe UI", 10)).pack()
-    tk.Label(root, text=url, fg="#2455bb", cursor="hand2").pack(pady=(6, 10))
+    tk.Label(root, text=url, fg="#2455bb", cursor="hand2").pack(pady=(6, 6))
+
+    try:
+        from snesstudio.toolchain import status as _tc
+        st = _tc()
+        if st["ready"]:
+            tk.Label(root, text="✓ PVSnesLib ready — Build ROM makes a playable .sfc", fg="#0a7d33", font=("Segoe UI", 9)).pack()
+        else:
+            tk.Label(root, text="PVSnesLib not found — editing & preview only (see docs/TOOLCHAIN.md)", fg="#9d6b00", font=("Segoe UI", 9)).pack()
+    except Exception:
+        pass
 
     def open_studio() -> None:
         webbrowser.open(url)

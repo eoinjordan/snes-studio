@@ -118,7 +118,25 @@ def create_app(project_path: str) -> FastAPI:
     def api_export_c(): return export_c(path, "build/generated/web")
 
     @app.post("/api/make-rom")
-    def api_make_rom(req: BuildRequest): return make_rom(path, req.out_file, req.skip_build)
+    def api_make_rom(req: BuildRequest):
+        try:
+            return make_rom(path, req.out_file, req.skip_build)
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+
+    @app.get("/api/toolchain")
+    def api_toolchain():
+        from .toolchain import status as toolchain_status
+        return toolchain_status()
+
+    @app.get("/api/rom")
+    def api_rom(file: str = "build/web-preview.sfc"):
+        from pathlib import Path as _Path
+        from fastapi.responses import FileResponse
+        rom = _Path(file)
+        if not rom.exists():
+            raise HTTPException(status_code=404, detail="No ROM built yet. Use Build ROM first.")
+        return FileResponse(str(rom), media_type="application/octet-stream", filename="snes-studio.sfc")
 
     @app.post("/api/scenes")
     def api_add_scene(req: SceneRequest):

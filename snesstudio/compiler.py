@@ -127,10 +127,18 @@ def make_rom(project_path: str | Path, out_file: str | Path, skip_build: bool = 
         payload = b"SNESSTUDIO_PLACEHOLDER_ROM\nThis is not a playable SNES ROM. Build with PVSnesLib.\n"
         out_file.write_bytes(payload)
         return {"rom": str(out_file), "bytes": out_file.stat().st_size, "placeholder": True, "generated": result}
+    from .toolchain import build_env, status as toolchain_status
+    ready = build_env()
+    if ready is None:
+        st = toolchain_status()
+        raise RuntimeError(
+            "PVSnesLib toolchain not found "
+            f"(pvsneslib_home={st['pvsneslib_home']}, make={st['make']}). "
+            "Install PVSnesLib (see docs/TOOLCHAIN.md) or use --skip-build."
+        )
+    env, make_exe = ready
     try:
-        subprocess.run(["make"], cwd=build_dir, check=True)
-    except FileNotFoundError as exc:
-        raise RuntimeError("make not found. Install a build toolchain and PVSnesLib, or use --skip-build.") from exc
+        subprocess.run([make_exe], cwd=build_dir, check=True, env=env)
     except subprocess.CalledProcessError as exc:
         raise RuntimeError("SNES build failed. Check docs/TOOLCHAIN.md and generated build output.") from exc
     candidate = build_dir / "game.sfc"

@@ -108,6 +108,17 @@ def test_poachermon_launch_template_is_complete_and_converts():
     assert json.loads(web_copy.read_text()) == json.loads(poach.read_text())
 
 
+def test_toolchain_path_normalization():
+    # PVSNESLIB_HOME must be Unix-style for snes_rules even on Windows; the
+    # detector must round-trip Windows <-> /c/ paths and report a status dict.
+    from snesstudio import toolchain
+    assert toolchain._unixify(r"C:\pvsneslib-install\pvsneslib") == "/c/pvsneslib-install/pvsneslib"
+    assert toolchain._unixify("/opt/pvsneslib") == "/opt/pvsneslib"
+    st = toolchain.status()
+    assert set(st) >= {"pvsneslib_home", "pvsneslib_home_unix", "make", "ready"}
+    assert isinstance(st["ready"], bool)
+
+
 def test_poachermon_plays_through_to_a_win():
     # The desktop simulator must run the launch template end to end: visit every
     # scene in order and reach the win state (a Poachermon rescued, poacher caught).

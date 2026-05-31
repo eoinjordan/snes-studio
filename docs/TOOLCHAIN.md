@@ -10,6 +10,20 @@ nothing:
 snes-studio make:rom examples/poachermon/project.snesproj build/poachermon.sfc --skip-build
 ```
 
+## Online (Vercel/Pages) vs offline (desktop app)
+
+The **hosted** site (Vercel / Netlify / GitHub Pages) is a static app: it can
+edit projects, import art, use templates, run the AI helper, and **preview** a
+`.sfc` you load — but it **cannot build ROMs** (no Python, no PVSnesLib, no
+filesystem). "Build ROM" there just points you to the offline app.
+
+The **offline desktop app** (`scripts/snes_studio_desktop.py`, or `pip install`
++ `snes-studio` CLI) runs the Python backend locally and **does build real,
+playable ROMs**. It **auto-detects** PVSnesLib + `make` (`snesstudio/toolchain.py`)
+and configures `PVSNESLIB_HOME` for you — if PVSnesLib is installed in a standard
+location, `Build ROM` just works and loads the result straight into the in-app
+emulator. The Build Checks panel shows whether the toolchain is ready.
+
 ## Real ROM build (verified with PVSnesLib 4.5.0 on Windows)
 
 1. **Install PVSnesLib** — download the release for your OS from
