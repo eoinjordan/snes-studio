@@ -230,3 +230,32 @@ def test_export_c_and_placeholder_rom(tmp_path):
     rom_result = make_rom(PROJECT, rom, skip_build=True)
     assert rom.exists()
     assert rom_result['placeholder'] is True
+
+
+def test_tiled_scene_export_and_collision():
+    """Tile-painted scenes export real 8x8 tiles, a 32x32 map and solid collision."""
+    project = load_project(PROJECT)
+    ts = tilemap.load_bg_tileset("overworld")
+    ids = [t["id"] for t in ts["tiles"]]
+    grass, tree = ids.index("grass"), ids.index("tree")
+    scene = project.scenes[0]
+    cells = [grass] * (tilemap.TILE_COLS * tilemap.TILE_ROWS)
+    cells[0] = tree  # solid metatile in the top-left
+    scene.tilemap = cells
+    scene.tileset = "overworld"
+
+    assert tilemap.scene_is_tiled(scene)
+    bank, meta = tilemap.build_real_bank(ts)
+    assert len(bank) > 0 and len(meta) == len(ts["tiles"])
+    words, col = tilemap.tiled_map_and_collision(scene, ts, meta)
+    assert len(words) == tilemap.MAP_W * tilemap.MAP_H
+    # the tree metatile occupies the top-left 2x2 of 8x8 cells and is solid
+    for dy in (0, 1):
+        for dx in (0, 1):
+            assert col[dy * tilemap.MAP_W + dx] == 1
+    # grass is walkable
+    assert col[tilemap.MAP_W * 2 + 2] == 0
+    # full project render includes flat tiles (16) + real tiles, and the scene map
+    header, source = tilemap.render_tilemaps(project)
+    assert "[tiled]" in header
+    assert f"map_{__import__('snesstudio.compiler', fromlist=['c_ident']).c_ident(scene.id)}" in header

@@ -42,6 +42,8 @@ def update_scene(project: Project | dict[str, Any], scene_id: str, **fields: Any
     scene.background = updated.background
     scene.paint = updated.paint
     scene.paint_palette = updated.paint_palette
+    scene.tilemap = updated.tilemap
+    scene.tileset = updated.tileset
     scene.collision = updated.collision
     scene.notes = updated.notes
     return _dict(p)

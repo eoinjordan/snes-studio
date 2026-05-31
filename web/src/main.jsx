@@ -185,7 +185,22 @@ function EventEditor({ chains, chainId, setChainId, blocks, onAddChain, onAddSte
   </section>;
 }
 
-function SceneCanvas({ scene, sprites, selectedActor, actor, setSelectedActor, tool, setTool, selectedZone, setSelectedZone, onMoveActor, onAddActor, onAddCollision, onAddTrigger, onPaintScene }) {
+const TILE_COLS = 16, TILE_ROWS = 14;     // 16x16 metatile grid -> 256x224 native res
+// Render every metatile in a bundled tileset to a data URL for the palette + canvas.
+function useTileThumbs(bgTileset) {
+  return useMemo(() => {
+    if (!bgTileset) return [];
+    const px = bgTileset.tile_px || 16;
+    const pal = bgTileset.palette.map(h => h);
+    return bgTileset.tiles.map(t => {
+      const cv = document.createElement('canvas'); cv.width = px; cv.height = px;
+      const ctx = cv.getContext('2d');
+      for (let i = 0; i < t.pixels.length; i++) { ctx.fillStyle = pal[t.pixels[i]] || '#000'; ctx.fillRect(i % px, Math.floor(i / px), 1, 1); }
+      return { url: cv.toDataURL(), name: t.name, solid: t.solid };
+    });
+  }, [bgTileset]);
+}
+function SceneCanvas({ scene, sprites, bgTileset, selectedActor, actor, setSelectedActor, tool, setTool, selectedZone, setSelectedZone, onMoveActor, onAddActor, onAddCollision, onAddTrigger, onPaintScene, onPaintTiles }) {
   const ref = useRef(null);
   const [drag, setDrag] = useState(null); // {id, x, y}
   const [draw, setDraw] = useState(null); // {x, y, w, h, sx, sy}
@@ -196,6 +211,16 @@ function SceneCanvas({ scene, sprites, selectedActor, actor, setSelectedActor, t
   const paintRef = useRef(paintCells);
   const spriteById = useMemo(() => Object.fromEntries((sprites || []).map(s => [s.id, s])), [sprites]);
   const tileColors = (scene?.paint_palette && scene.paint_palette.length) ? scene.paint_palette : ['transparent', '#9ca3af', '#22c55e', '#f59e0b', '#0ea5e9'];
+  // ---- tile-based background (Zelda/Pokemon style) ----
+  const thumbs = useTileThumbs(bgTileset);
+  const grassIdx = useMemo(() => Math.max(0, (bgTileset?.tiles || []).findIndex(t => t.id === 'grass')), [bgTileset]);
+  const [tileIdx, setTileIdx] = useState(1);
+  const tileDirty = useRef(false);
+  const [tileCells, setTileCells] = useState(scene?.tilemap?.length ? scene.tilemap : null);
+  const tileRef = useRef(tileCells);
+  const tileMode = tool === 'tile';
+  useEffect(() => { setTileCells(scene?.tilemap?.length ? scene.tilemap : null); tileDirty.current = false; }, [scene?.id, scene?.tilemap]);
+  useEffect(() => { tileRef.current = tileCells; }, [tileCells]);
   useEffect(() => { setPaintCells(scene?.paint || Array(32 * 28).fill(0)); paintDirty.current = false; }, [scene?.id, scene?.paint]);
   useEffect(() => { paintRef.current = paintCells; }, [paintCells]);
   useEffect(() => {
@@ -206,10 +231,14 @@ function SceneCanvas({ scene, sprites, selectedActor, actor, setSelectedActor, t
         paintDirty.current = false;
         onPaintScene(paintRef.current);
       }
+      if (tileDirty.current) {
+        tileDirty.current = false;
+        if (tileRef.current) onPaintTiles(tileRef.current);
+      }
     };
     window.addEventListener('pointerup', up);
     return () => window.removeEventListener('pointerup', up);
-  }, [onPaintScene]);
+  }, [onPaintScene, onPaintTiles]);
 
   useEffect(() => {
     if (!drag) return;
@@ -291,19 +320,36 @@ function SceneCanvas({ scene, sprites, selectedActor, actor, setSelectedActor, t
       return next;
     });
   };
+  const paintTileCell = (idx) => {
+    setTileCells(prev => {
+      const base = prev && prev.length === TILE_COLS * TILE_ROWS ? prev : Array(TILE_COLS * TILE_ROWS).fill(grassIdx);
+      const next = base.slice();
+      if (next[idx] === tileIdx) return base === prev ? prev : base;
+      next[idx] = tileIdx;
+      tileDirty.current = true;
+      return next;
+    });
+  };
 
   return <section className="card grow"><div className="section-title"><div><h2>Scene Canvas: {scene?.name || 'No scene'}</h2></div><div className="two"><Pill tone="blue">SNES 256 x 224</Pill>{scene ? <button className="icon" title="Add actor" onClick={onAddActor}><Plus size={16}/></button> : null}</div></div>
     <SceneStats scene={scene} tool={tool} selectedZone={selectedZone} actor={actor}/>
     <div className="toolbar tool-rack">
       <div className="tool-group"><Tool icon={MousePointer2} label="Select" active={tool==='select'} onClick={()=>setTool('select')}/><Tool icon={Move} label="Move" active={tool==='move'} onClick={()=>setTool('move')}/></div>
-      <div className="tool-group"><Tool icon={Paintbrush} label="Paint" active={tool==='paint'} onClick={()=>setTool('paint')}/><Tool icon={Eraser} label="Erase" active={tool==='erase'} onClick={()=>setTool('erase')}/></div>
+      <div className="tool-group">{bgTileset?<Tool icon={Layers} label="Tiles" active={tool==='tile'} onClick={()=>setTool('tile')}/>:null}<Tool icon={Paintbrush} label="Paint" active={tool==='paint'} onClick={()=>setTool('paint')}/><Tool icon={Eraser} label="Erase" active={tool==='erase'} onClick={()=>setTool('erase')}/></div>
       <div className="tool-group"><Tool icon={Square} label="Collision" active={tool==='collision'} onClick={()=>setTool('collision')}/><Tool icon={Circle} label="Trigger" active={tool==='trigger'} onClick={()=>setTool('trigger')}/><Tool icon={Link2} label="Link event" onClick={()=>setTool('select')}/></div>
     </div>
+    {tileMode ? <div className="tile-palette">{thumbs.map((t,i)=><button key={i} className={i===tileIdx?'sel':''} title={t.name+(t.solid?' (solid)':'')} onClick={()=>setTileIdx(i)} style={{backgroundImage:`url(${t.url})`}}/>)}</div> : null}
     {(tool==='paint'||tool==='erase') ? <div className="swatches">{tileColors.map((c,i)=><button key={i} onClick={()=>setPaintTile(i)} style={{background:c==='transparent'?'#ffffff':c, outline:i===paintTile?'2px solid #111827':'none'}} title={`Tile ${i}`}/>)}</div> : null}
     <div className="canvas" ref={ref} onPointerDown={onCanvasPointerDown}><div className="grid-bg"/><div className="ground"/>
-      <div className={`tile-layer${(scene?.paint_palette&&scene.paint_palette.length)?' painted':''}`} style={{gridTemplateColumns:'repeat(32, 1fr)'}}>
-        {paintCells.map((v, idx) => <button key={idx} className="tile-cell" style={{background:tileColors[v] || tileColors[0]}} onPointerDown={(e)=>{ if(tool!=='paint'&&tool!=='erase') return; e.preventDefault(); painting.current=true; paintCell(idx); }} onPointerEnter={()=>{ if(painting.current && (tool==='paint'||tool==='erase')) paintCell(idx); }} />)}
-      </div>
+      {(tileCells || tileMode) && bgTileset ? (
+        <div className={`tile-layer tilemap${tileMode?' editing':''}`} style={{gridTemplateColumns:`repeat(${TILE_COLS}, 1fr)`}}>
+          {Array.from({length:TILE_COLS*TILE_ROWS}).map((_,idx)=>{ const v=(tileCells||[])[idx] ?? grassIdx; const th=thumbs[v]; return <button key={idx} className="bg-tile" style={{backgroundImage: th?`url(${th.url})`:'none'}} onPointerDown={(e)=>{ if(!tileMode) return; e.preventDefault(); painting.current=true; paintTileCell(idx); }} onPointerEnter={()=>{ if(painting.current && tileMode) paintTileCell(idx); }} />; })}
+        </div>
+      ) : (
+        <div className={`tile-layer${(scene?.paint_palette&&scene.paint_palette.length)?' painted':''}`} style={{gridTemplateColumns:'repeat(32, 1fr)'}}>
+          {paintCells.map((v, idx) => <button key={idx} className="tile-cell" style={{background:tileColors[v] || tileColors[0]}} onPointerDown={(e)=>{ if(tool!=='paint'&&tool!=='erase') return; e.preventDefault(); painting.current=true; paintCell(idx); }} onPointerEnter={()=>{ if(painting.current && (tool==='paint'||tool==='erase')) paintCell(idx); }} />)}
+        </div>
+      )}
       {(scene?.collision||[]).map(c=><button key={c.id} className={`collision ${selectedZone?.kind==='collision'&&selectedZone?.id===c.id?'sel':''}`} style={{left:c.x*SCALE_X, top:c.y*SCALE_Y, width:c.w*SCALE_X, height:c.h*SCALE_Y}} onClick={()=>{ setSelectedZone({kind:'collision',id:c.id}); setSelectedActor(null); }}>Collision</button>)}
       {(scene?.triggers||[]).map(t=><button key={t.id} className={`trigger ${selectedZone?.kind==='trigger'&&selectedZone?.id===t.id?'sel':''}`} style={{left:t.x*SCALE_X, top:t.y*SCALE_Y, width:t.w*SCALE_X, height:t.h*SCALE_Y}} onClick={()=>{ setSelectedZone({kind:'trigger',id:t.id}); setSelectedActor(null); }}>Trigger</button>)}
       {draw ? <div className={tool === 'collision' ? 'collision' : 'trigger'} style={{left:draw.x*SCALE_X, top:draw.y*SCALE_Y, width:draw.w*SCALE_X, height:draw.h*SCALE_Y}}>{tool === 'collision' ? 'Collision' : 'Trigger'}</div> : null}
@@ -590,7 +636,9 @@ function App(){
   const [aiSettings,setAiSettings]=useState(false);
   const [aiOn,setAiOn]=useState(false);
   const [toolStatus,setToolStatus]=useState(null);
+  const [bgTileset,setBgTileset]=useState(null);
   useEffect(()=>{ try{ setAiOn(!!localStorage.getItem('snesstudio_llm_key')); }catch{} },[]);
+  useEffect(()=>{ fetch(`${import.meta.env.BASE_URL}assets/bg_overworld.json`).then(r=>r.ok?r.json():null).then(setBgTileset).catch(()=>{}); },[]);
   const fileInput = useRef(null);
   const romInput = useRef(null);
   const releaseRepo = (import.meta.env.VITE_GITHUB_REPO || 'eoinjordan/snes-studio').trim();
@@ -634,6 +682,7 @@ function App(){
   const onUpdateTrigger = (id, fields) => commit(client.current.updateTrigger(scene.id, id, fields), `Updated trigger ${id}.`);
   const onDeleteTrigger = (id) => { commit(client.current.deleteTrigger(scene.id, id), `Deleted trigger ${id}.`); if(selectedZone?.id===id) setSelectedZone(null); };
   const onPaintScene = (paint) => commit(client.current.updateScene(scene.id, { paint }), `Updated scene paint.`);
+  const onPaintTiles = (tilemap) => commit(client.current.updateScene(scene.id, { tilemap, tileset: 'overworld' }), `Updated scene tiles.`);
   // GB Studio-style one-click scene jump: build a change_scene chain and link it.
   async function linkTriggerToScene(triggerId, targetSceneId){
     if(!scene || !targetSceneId) return;
@@ -753,7 +802,7 @@ function App(){
       </aside>
       <main className="main">
         <section className="card"><div className="tabs"><Tool icon={Map} label="Scene" active={view==='scene'} onClick={()=>setView('scene')}/><Tool icon={Palette} label="Sprite" active={view==='sprite'} onClick={()=>setView('sprite')}/><Tool icon={GitBranch} label="Events" active={view==='events'} onClick={()=>setView('events')}/><Tool icon={Blocks} label="Blocks" active={view==='blocks'} onClick={()=>setView('blocks')}/><Tool icon={MonitorPlay} label="ROM Preview" active={view==='preview'} onClick={()=>setView('preview')}/></div></section>
-        {view==='scene'&&<SceneCanvas scene={scene} sprites={project?.sprites} selectedActor={actor?.id} actor={actor} setSelectedActor={setActorId} tool={sceneTool} setTool={setSceneTool} selectedZone={selectedZone} setSelectedZone={setSelectedZone} onMoveActor={onMoveActor} onAddActor={openActorForm} onAddCollision={onAddCollision} onAddTrigger={onAddTrigger} onPaintScene={onPaintScene}/>}
+        {view==='scene'&&<SceneCanvas scene={scene} sprites={project?.sprites} bgTileset={bgTileset} selectedActor={actor?.id} actor={actor} setSelectedActor={setActorId} tool={sceneTool} setTool={setSceneTool} selectedZone={selectedZone} setSelectedZone={setSelectedZone} onMoveActor={onMoveActor} onAddActor={openActorForm} onAddCollision={onAddCollision} onAddTrigger={onAddTrigger} onPaintScene={onPaintScene} onPaintTiles={onPaintTiles}/>}
         {view==='sprite'&&<SpriteEditor sprite={sprite} actor={actor} onChange={onPaintSprite} onAssignToActor={onAssignSprite}/>}
         {(view==='events'||view==='blocks')&&<EventEditor chains={project?.eventChains||[]} chainId={chainId} setChainId={setChainId} blocks={blocks} onAddChain={openChainForm} onAddStep={onAddStep} onDeleteStep={onDeleteStep}/>}
         {view==='preview'&&<RomPreview romUrl={rom?.url} romName={rom?.name} onPick={pickRom} onPlayBuiltIn={playBuiltIn}/>}

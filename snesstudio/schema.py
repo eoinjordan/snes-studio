@@ -110,6 +110,10 @@ class Scene(BaseModel):
     triggers: list[Zone] = Field(default_factory=list)
     paint: list[int] = Field(default_factory=lambda: [0] * (32 * 28))
     paint_palette: list[str] | None = None  # per-scene tile colors (index 0..n); None = editor default
+    # Tile-based background (Zelda/Pokemon style): 16x14 grid of metatile indices
+    # into a bundled tileset. Empty = fall back to the flat-colour `paint` grid.
+    tilemap: list[int] = Field(default_factory=list)
+    tileset: str | None = None  # bundled tileset id (e.g. "overworld"); None = default
     notes: str | None = None
 
     @field_validator("actors")
@@ -126,6 +130,14 @@ class Scene(BaseModel):
         expected = 32 * 28
         if len(value) != expected:
             raise ValueError(f"scene paint must have {expected} cells")
+        return value
+
+    @field_validator("tilemap")
+    @classmethod
+    def valid_tilemap_size(cls, value: list[int]) -> list[int]:
+        expected = 16 * 14
+        if value and len(value) != expected:
+            raise ValueError(f"scene tilemap must be empty or have {expected} cells")
         return value
 
 class Asset(BaseModel):

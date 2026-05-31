@@ -17,11 +17,16 @@ APP_PAYLOAD="$ROOT/build/macos/root/Applications"
 DIST="$ROOT/dist"
 mkdir -p "$BIN_PAYLOAD" "$APP_PAYLOAD" "$DIST"
 
-python3 -m PyInstaller --onefile --name snes-studio --distpath "$BIN_PAYLOAD" scripts/snes_studio_cli.py
+python3 -m PyInstaller --onefile --name snes-studio --distpath "$BIN_PAYLOAD" \
+  --add-data "snesstudio/assets:snesstudio/assets" \
+  --add-data "snesstudio/templates:snesstudio/templates" \
+  scripts/snes_studio_cli.py
 chmod +x "$BIN_PAYLOAD/snes-studio"
 
 python3 -m PyInstaller --windowed --name "SNES Studio" --distpath "$APP_PAYLOAD" \
   --add-data "web/dist:web/dist" \
+  --add-data "snesstudio/assets:snesstudio/assets" \
+  --add-data "snesstudio/templates:snesstudio/templates" \
   --add-data "examples/pocket-bugs:examples/pocket-bugs" \
   --add-data "examples/mango-island:examples/mango-island" \
   --add-data "examples/poachermon:examples/poachermon" \
