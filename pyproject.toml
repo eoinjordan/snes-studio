@@ -19,6 +19,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.5"]
 server = ["fastapi>=0.110", "uvicorn>=0.27"]
+art = ["pillow>=10"]
 
 [project.scripts]
 snes-studio = "snesstudio.cli:main"

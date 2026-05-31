@@ -6,7 +6,7 @@ SNES Studio is a kid-friendly, human-in-the-loop, agent-assisted game builder fo
 
 This 1.0.0 repository is a complete publishable MVP. It gives you a polished editor shell, a real project model, scene editing primitives, sprite editing primitives, event-chain logic, safe agent patch review, C export, GitHub Pages demo mode, and local backend mode.
 
-The studio opens on its flagship showcase game, **Pocket Bugs** - a garden-bug battler where kids catch bugs in matchboxes and battle in backyard tournaments. It's built entirely from SNES Studio's own scene/sprite/event model (`python scripts/make_pocket_bugs.py`).
+The studio opens on its flagship showcase game, **Pocket Bugs** - a garden-bug battler where kids catch bugs in matchboxes and battle in backyard tournaments. It's built entirely from SNES Studio's own scene/sprite/event model (`python scripts/make_pocket_bugs.py`) and ships with embedded CC0 OpenGameArt sprite/tile sources documented in `docs/ASSET_SOURCES.md`.
 
 Real playable SNES ROM generation is supported when PVSnesLib is installed. The `--skip-build` path still exists for CI/release workflow testing and produces a placeholder `.sfc`.
 
@@ -43,6 +43,17 @@ The agent never silently edits the game. Every helper change is reviewable.
 - Generated C export using Jinja templates
 - CLI workflow for classrooms and CI
 - GitHub Actions for backend tests, frontend build, Pages deploy, and release artifacts
+
+## Bundled art
+
+The showcase and template projects use converted CC0 OpenGameArt assets instead of generated placeholder sprites. To regenerate the embedded art from source packs:
+
+```bash
+pip install -e ".[art]"
+python scripts/import_open_art_assets.py
+```
+
+See `docs/ASSET_SOURCES.md` for source links and licensing notes.
 
 ## Quick start: backend
 
