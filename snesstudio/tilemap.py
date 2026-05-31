@@ -64,12 +64,58 @@ def scene_tilemap(scene: Scene, w: int = MAP_W, h: int = MAP_H) -> list[int]:
     return grid
 
 
+PAINT_COLS, PAINT_ROWS = 32, 28      # editor paint grid (matches web SCENE_COLS/ROWS)
+VISIBLE_ROWS = 28                    # 28*8 = 224px screen height
+
+
 def bg_tileset() -> bytes:
-    """Four flat 8x8 4bpp tiles (one per palette index 0..3)."""
+    """Sixteen flat 8x8 4bpp tiles, one solid tile per palette index 0..15.
+
+    The painted background just indexes these by colour, so a scene's look is
+    entirely defined by its per-scene palette."""
     data = bytearray()
-    for idx in range(4):
+    for idx in range(16):
         data.extend(_tile_4bpp([idx] * (TILE_PX * TILE_PX)))
     return bytes(data)
+
+
+def _sanitize_palette(colors: list[str]) -> list[str]:
+    """Editor palettes may carry 'transparent' (index 0); map non-hex to black."""
+    return [c if isinstance(c, str) and c.startswith("#") else "#000000" for c in colors]
+
+
+def scene_is_painted(scene: Scene) -> bool:
+    return bool(scene.paint_palette) and any(v for v in (scene.paint or []))
+
+
+def painted_tilemap(scene: Scene) -> list[int]:
+    """32x32 map from the editor's 32x28 paint grid (off-screen rows = 0)."""
+    grid = [tile_entry(0)] * (MAP_W * MAP_H)
+    paint = scene.paint or []
+    for r in range(min(PAINT_ROWS, MAP_H)):
+        for c in range(min(PAINT_COLS, MAP_W)):
+            idx = paint[r * PAINT_COLS + c] if r * PAINT_COLS + c < len(paint) else 0
+            grid[r * MAP_W + c] = tile_entry(idx & 0xF)
+    return grid
+
+
+def scene_collision_grid(scene: Scene) -> list[int]:
+    """32x32 byte grid (1 = solid) from the scene's collision rectangles."""
+    grid = [0] * (MAP_W * MAP_H)
+    for rect in scene.collision:
+        tx0, ty0 = rect.x // TILE_PX, rect.y // TILE_PX
+        tx1 = (rect.x + rect.w - 1) // TILE_PX
+        ty1 = (rect.y + rect.h - 1) // TILE_PX
+        for ty in range(ty0, ty1 + 1):
+            for tx in range(tx0, tx1 + 1):
+                if 0 <= tx < MAP_W and 0 <= ty < MAP_H:
+                    grid[ty * MAP_W + tx] = 1
+    return grid
+
+
+def scene_palette(scene: Scene) -> list[int]:
+    colors = _sanitize_palette(scene.paint_palette) if scene.paint_palette else BG_PALETTE
+    return palette_to_cgram(colors, 16)
 
 
 def _c_word_array(name: str, words: list[int]) -> str:
@@ -89,24 +135,38 @@ def _c_byte_array(name: str, data: bytes) -> str:
 
 
 def render_tilemaps(project: Project) -> tuple[str, str]:
-    """Render (header, source) C for the bg tileset/palette and per-scene maps."""
+    """Render (header, source) C: bg tileset + per-scene map, collision, palette."""
     tiles = bg_tileset()
-    pal = palette_to_cgram(BG_PALETTE)
+    wall = tile_entry(BG_WALL)
     h = ["#ifndef SNESSTUDIO_MAPS_H", "#define SNESSTUDIO_MAPS_H", "",
-         "/* Generated SNES background tilemaps (32x32) + built-in bg tileset. */",
+         "/* Generated SNES backgrounds: 16 flat bg tiles + per-scene tilemap,",
+         "   collision grid and palette. Painted scenes use the editor paint grid;",
+         "   others fall back to a synthesized floor/wall map. */",
          f"#define MAP_W {MAP_W}", f"#define MAP_H {MAP_H}",
+         f"#define VISIBLE_ROWS {VISIBLE_ROWS}",
          f"#define BG_TILESET_TILES {len(tiles) // BYTES_PER_TILE}",
          f"extern const unsigned char gfx_bgtiles[{len(tiles)}];",
          "extern const unsigned short pal_bg[16];", ""]
     c = ['#include "snesstudio_maps.h"', "",
          _c_byte_array("gfx_bgtiles", tiles), "",
-         _c_word_array("pal_bg", pal), ""]
+         _c_word_array("pal_bg", palette_to_cgram(BG_PALETTE, 16)), ""]
     for scene in project.scenes:
         ident = c_ident(scene.id)
-        words = scene_tilemap(scene)
-        h += [f"/* scene '{scene.id}' ({scene.name}) */",
-              f"extern const unsigned short map_{ident}[{len(words)}];", ""]
-        c += [_c_word_array(f"map_{ident}", words), ""]
+        painted = scene_is_painted(scene)
+        words = painted_tilemap(scene) if painted else scene_tilemap(scene)
+        col = scene_collision_grid(scene)
+        if not painted:
+            for i, w in enumerate(words):
+                if w == wall:
+                    col[i] = 1
+        pal = scene_palette(scene)
+        h += [f"/* scene '{scene.id}' ({scene.name}){' [painted]' if painted else ''} */",
+              f"extern const unsigned short map_{ident}[{len(words)}];",
+              f"extern const unsigned char col_{ident}[{len(col)}];",
+              f"extern const unsigned short pal_{ident}[16];", ""]
+        c += [_c_word_array(f"map_{ident}", words), "",
+              _c_byte_array(f"col_{ident}", bytes(col)), "",
+              _c_word_array(f"pal_{ident}", pal), ""]
     h += ["#endif", ""]
     return "\n".join(h), "\n".join(c)
 

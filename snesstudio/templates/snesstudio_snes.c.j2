@@ -30,7 +30,10 @@
 #define TEXTBOX_W    30
 #define TEXTBOX_H    4
 
-static const unsigned short *current_map = map_{{ (project.scenes[0].id | c_ident) if project.scenes else 'school' }};
+{% set first = (project.scenes[0].id | c_ident) if project.scenes else 'school' %}
+static const unsigned short *current_map = map_{{ first }};
+static const unsigned char *current_col = col_{{ first }};
+static const unsigned short *current_pal = pal_{{ first }};
 static short player_x = {{ ns.player.x if ns.player else 120 }};
 static short player_y = {{ ns.player.y if ns.player else 112 }};
 static unsigned char awaiting_player_place = 1;
@@ -52,8 +55,8 @@ int snesstudio_str_eq(const char *a, const char *b) { return strcmp(a, b) == 0; 
 /* ---- collision against the background tilemap ---- */
 static int tile_solid(short px, short py) {
     short tx = px >> 3, ty = py >> 3;
-    if (tx < 0 || ty < 0 || tx >= MAP_W || ty >= MAP_H) return 1;
-    return (current_map[ty * MAP_W + tx] & 0x03ff) == BG_WALL_CHAR;
+    if (tx < 0 || ty < 0 || tx >= MAP_W || ty >= VISIBLE_ROWS) return 1;
+    return current_col[ty * MAP_W + tx];
 }
 static int blocked(short px, short py) {
     return tile_solid(px, py) || tile_solid(px + SPR_SIZE - 1, py)
@@ -73,7 +76,7 @@ void snesstudio_init(const char *title) {
          OBJ (sprite) tiles         : 0x6000
        This mirrors PVSnesLib's Mode1Scroll example (background + text together). */
     consoleInit();
-    bgInitTileSet(1, (unsigned char *)&gfx_bgtiles, (unsigned char *)&pal_bg, 0,
+    bgInitTileSet(1, (unsigned char *)&gfx_bgtiles, (unsigned char *)current_pal, 0,
                   BG_TILESET_TILES * 32, 16 * 2, BG_16COLORS, 0x4000);
     bgInitMapSet(1, (unsigned char *)current_map, MAP_W * MAP_H * 2, SC_32x32, 0x1000);
     oamInitGfxSet((unsigned char *)&gfx_{{ player_sprite }}_tiles, GFX_{{ player_sprite | upper }}_TILES * 32,
@@ -82,7 +85,26 @@ void snesstudio_init(const char *title) {
     oamSetEx(0, OBJ_SMALL, OBJ_SHOW);
     oamSetVisible(0, OBJ_SHOW);   /* required for the sprite to actually draw */
     setMode(BG_MODE1, 0);
+    bgSetEnable(0);
+    bgSetEnable(1);
     setScreenOn();
+}
+
+void snesstudio_show_start_menu(const char *title) {
+    unsigned short pad;
+    consoleDrawText(9, 7, (char *)title);
+    consoleDrawText(4, 10, (char *)"Garden bug battle demo");
+    consoleDrawText(6, 13, (char *)"Press START or A");
+    consoleDrawText(3, 17, (char *)"Catch bugs. Win the cup.");
+    while (1) {
+        WaitForVBlank();
+        pad = padsCurrent(0);
+        if ((pad & KEY_START) || (pad & KEY_A)) break;
+    }
+    consoleDrawText(3, 7, (char *)"                          ");
+    consoleDrawText(3, 10, (char *)"                          ");
+    consoleDrawText(3, 13, (char *)"                          ");
+    consoleDrawText(3, 17, (char *)"                          ");
 }
 
 void snesstudio_set_scene(const char *scene_id, const char *scene_name) {
@@ -91,7 +113,12 @@ void snesstudio_set_scene(const char *scene_id, const char *scene_name) {
 {% for scene in project.scenes %}
     if (snesstudio_str_eq(scene_id, "{{ scene.id }}")) {
         current_map = map_{{ scene.id | c_ident }};
+        current_col = col_{{ scene.id | c_ident }};
+        bgInitTileSet(1, (unsigned char *)&gfx_bgtiles, (unsigned char *)&pal_{{ scene.id | c_ident }}, 0,
+                      BG_TILESET_TILES * 32, 16 * 2, BG_16COLORS, 0x4000);
         bgInitMapSet(1, (unsigned char *)current_map, MAP_W * MAP_H * 2, SC_32x32, 0x1000);
+        bgSetEnable(0);
+        bgSetEnable(1);
         return;
     }
 {% endfor %}

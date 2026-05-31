@@ -74,7 +74,9 @@ void load_scene(const char *scene_id) {
 
 int main(void) {
     snesstudio_init("{{ project.rom.title }}");
-    load_scene("{{ project.scenes[0].id if project.scenes else 'start' }}");
+    snesstudio_show_start_menu("{{ project.rom.title }}");
+{% set boot_scene = project.scenes[1].id if project.scenes|length > 1 and project.scenes[0].id == 'title' else (project.scenes[0].id if project.scenes else 'start') %}
+    load_scene("{{ boot_scene }}");
 {% for chain in project.eventChains %}
 {% if chain.trigger and chain.trigger.type == 'scene_start' and not chain.trigger.scene %}
     event_{{ chain.id|c_ident }}();  /* unbound scene_start: runs on first scene */
