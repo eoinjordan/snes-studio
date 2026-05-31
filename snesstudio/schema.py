@@ -109,6 +109,7 @@ class Scene(BaseModel):
     collision: list[Collision] = Field(default_factory=list)
     triggers: list[Zone] = Field(default_factory=list)
     paint: list[int] = Field(default_factory=lambda: [0] * (32 * 28))
+    paint_palette: list[str] | None = None  # per-scene tile colors (index 0..n); None = editor default
     notes: str | None = None
 
     @field_validator("actors")

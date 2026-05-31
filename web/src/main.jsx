@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { motion } from 'framer-motion';
 import { Gamepad2, FolderOpen, Save, Code2, Play, MonitorPlay, Download, Upload, Wifi, WifiOff, Plus, ChevronRight, Palette, Map, GitBranch, Blocks, Image as ImageIcon, MousePointer2, Move, Square, Circle, Link2, Paintbrush, Eraser, Copy, Trash2, Wand2, Eye, ShieldCheck, CheckCircle2, AlertTriangle, Users, MessageSquare, Settings2, Layers, X } from 'lucide-react';
 import { StudioClient } from './api.js';
-import { imageToSprite, AI_PIXEL_TOOLS } from './sprite-import.js';
+import { imageToSprite, AI_PIXEL_TOOLS, imageToScenePaint, paintToWallCollisions, darkestIndex, SCENE_PRESETS, SCENE_COLS, SCENE_ROWS } from './sprite-import.js';
 import './styles.css';
 
 const SCENE_W = 256, SCENE_H = 224, SCALE_X = 2, SCALE_Y = 1.6;
@@ -174,7 +174,7 @@ function SceneCanvas({ scene, sprites, selectedActor, actor, setSelectedActor, t
   const [paintCells, setPaintCells] = useState(scene?.paint || Array(32 * 28).fill(0));
   const paintRef = useRef(paintCells);
   const spriteById = useMemo(() => Object.fromEntries((sprites || []).map(s => [s.id, s])), [sprites]);
-  const tileColors = ['transparent', '#9ca3af', '#22c55e', '#f59e0b', '#0ea5e9'];
+  const tileColors = (scene?.paint_palette && scene.paint_palette.length) ? scene.paint_palette : ['transparent', '#9ca3af', '#22c55e', '#f59e0b', '#0ea5e9'];
   useEffect(() => { setPaintCells(scene?.paint || Array(32 * 28).fill(0)); paintDirty.current = false; }, [scene?.id, scene?.paint]);
   useEffect(() => { paintRef.current = paintCells; }, [paintCells]);
   useEffect(() => {
@@ -280,7 +280,7 @@ function SceneCanvas({ scene, sprites, selectedActor, actor, setSelectedActor, t
     </div>
     {(tool==='paint'||tool==='erase') ? <div className="swatches">{tileColors.map((c,i)=><button key={i} onClick={()=>setPaintTile(i)} style={{background:c==='transparent'?'#ffffff':c, outline:i===paintTile?'2px solid #111827':'none'}} title={`Tile ${i}`}/>)}</div> : null}
     <div className="canvas" ref={ref} onPointerDown={onCanvasPointerDown}><div className="grid-bg"/><div className="ground"/>
-      <div className="tile-layer" style={{gridTemplateColumns:'repeat(32, 1fr)'}}>
+      <div className={`tile-layer${(scene?.paint_palette&&scene.paint_palette.length)?' painted':''}`} style={{gridTemplateColumns:'repeat(32, 1fr)'}}>
         {paintCells.map((v, idx) => <button key={idx} className="tile-cell" style={{background:tileColors[v] || tileColors[0]}} onPointerDown={(e)=>{ if(tool!=='paint'&&tool!=='erase') return; e.preventDefault(); painting.current=true; paintCell(idx); }} onPointerEnter={()=>{ if(painting.current && (tool==='paint'||tool==='erase')) paintCell(idx); }} />)}
       </div>
       {(scene?.collision||[]).map(c=><button key={c.id} className={`collision ${selectedZone?.kind==='collision'&&selectedZone?.id===c.id?'sel':''}`} style={{left:c.x*SCALE_X, top:c.y*SCALE_Y, width:c.w*SCALE_X, height:c.h*SCALE_Y}} onClick={()=>{ setSelectedZone({kind:'collision',id:c.id}); setSelectedActor(null); }}>Collision</button>)}
@@ -443,6 +443,62 @@ function SpriteImportModal({ onClose, onImport }) {
   </div></div>;
 }
 
+// Renders a 32x28 scene paint grid to a pixel-perfect canvas.
+function ScenePaintThumb({ paint, palette, scale = 7 }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const cvs = ref.current; if (!cvs) return;
+    cvs.width = SCENE_COLS; cvs.height = SCENE_ROWS;
+    const ctx = cvs.getContext('2d');
+    const img = ctx.createImageData(SCENE_COLS, SCENE_ROWS);
+    for (let i = 0; i < SCENE_COLS * SCENE_ROWS; i++) {
+      const hex = (palette[paint[i]] || '#000000').replace('#', '');
+      const n = parseInt(hex.length === 3 ? hex.split('').map(c => c + c).join('') : hex, 16);
+      img.data[i * 4] = (n >> 16) & 255; img.data[i * 4 + 1] = (n >> 8) & 255; img.data[i * 4 + 2] = n & 255; img.data[i * 4 + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+  }, [paint, palette]);
+  return <canvas ref={ref} style={{ width: SCENE_COLS * scale, height: SCENE_ROWS * scale, imageRendering: 'pixelated', borderRadius: 8, display: 'block' }} />;
+}
+
+// Build a scene background from an image or a preset, with optional wall collisions.
+function SceneImportModal({ sceneName, onClose, onApply }) {
+  const [img, setImg] = useState(null);
+  const [origUrl, setOrigUrl] = useState(null);
+  const [colors, setColors] = useState(10);
+  const [walls, setWalls] = useState(true);
+  const [result, setResult] = useState(null); // { paint, palette, solid? }
+
+  useEffect(() => { if (img) setResult(imageToScenePaint(img, { maxColors: colors })); }, [img, colors]);
+
+  const onFile = (e) => { const f = e.target.files?.[0]; if (!f) return; const url = URL.createObjectURL(f); const im = new Image(); im.onload = () => { setImg(im); setOrigUrl(url); }; im.src = url; };
+  const usePreset = (p) => { setImg(null); setOrigUrl(null); setResult(p.build()); };
+  const apply = () => {
+    if (!result) return;
+    const solid = result.solid !== undefined ? result.solid : [darkestIndex(result.palette)];
+    const collisions = walls && solid.length ? paintToWallCollisions(result.paint, solid) : [];
+    onApply({ paint: result.paint, palette: result.palette, collisions });
+  };
+
+  return <div className="modal-backdrop"><div className="modal import-modal">
+    <div className="modal-head"><div><h2><Map size={16}/> Build background for “{sceneName}”</h2><p>Pick a building-block preset, or import any image / AI-generated art — it becomes a 32×28 tile background.</p></div><button type="button" className="icon" onClick={onClose}><X size={16}/></button></div>
+    <div className="preset-row">{SCENE_PRESETS.map(p => <button key={p.name} className="preset" onClick={() => usePreset(p)}>{p.name}</button>)}</div>
+    <div className="ai-tools"><span>Generate pixel art with:</span>{AI_PIXEL_TOOLS.map(t => <a key={t.name} href={t.url} target="_blank" rel="noopener noreferrer">{t.name} ↗</a>)}</div>
+    <div className="import-body">
+      <div className="import-controls">
+        <label className="field">Image file<input type="file" accept="image/*" onChange={onFile}/></label>
+        <label className="field">Colors: {colors}<input type="range" min={3} max={16} value={colors} onChange={e => setColors(Number(e.target.value))} disabled={!img}/></label>
+        <label className="check-row"><input type="checkbox" checked={walls} onChange={e => setWalls(e.target.checked)}/> Turn solid tiles into wall collisions</label>
+      </div>
+      <div className="import-preview">
+        {origUrl ? <div><strong>Source</strong><img src={origUrl} alt="source"/></div> : null}
+        {result ? <div><strong>Scene background</strong><div className="checker"><ScenePaintThumb paint={result.paint} palette={result.palette}/></div><small>{result.palette.length} colors</small></div> : <p className="hint">Pick a preset or image to preview.</p>}
+      </div>
+    </div>
+    <div className="modal-actions"><Btn type="button" className="secondary" onClick={onClose}>Cancel</Btn><Btn type="button" className="primary" disabled={!result} onClick={apply}><Plus size={16}/>Apply to scene</Btn></div>
+  </div></div>;
+}
+
 function App(){
   const client = useRef(null);
   const [mode,setMode]=useState('loading'); const [project,setProject]=useState(null); const [inventory,setInventory]=useState({}); const [blocks,setBlocks]=useState({});
@@ -454,6 +510,7 @@ function App(){
   const [patch,setPatch]=useState(null); const [log,setLog]=useState('Starting SNES Studio.'); const [form,setForm]=useState(null);
   const [rom,setRom]=useState(null); // {url, name}
   const [importing,setImporting]=useState(false);
+  const [importingScene,setImportingScene]=useState(false);
   const fileInput = useRef(null);
   const romInput = useRef(null);
   const releaseRepo = (import.meta.env.VITE_GITHUB_REPO || 'eoinjordan/snes-studio').trim();
@@ -537,6 +594,14 @@ function App(){
     try { await commit(client.current.addSprite(final), `Imported sprite ${final.name}.`); setView('sprite'); }
     catch(e){ setLog(`Could not import sprite: ${e.message}`); }
   }
+  async function importScene(data){
+    setImportingScene(false);
+    if(!scene) return;
+    const fields = { paint: data.paint, paint_palette: data.palette };
+    if(data.collisions && data.collisions.length) fields.collision = data.collisions.map((c,i)=>({ id:`wall_${i+1}`, ...c }));
+    try { await commit(client.current.updateScene(scene.id, fields), `Built background for ${scene.name}${fields.collision?` (+${fields.collision.length} walls)`:''}.`); setView('scene'); }
+    catch(e){ setLog(`Could not build scene: ${e.message}`); }
+  }
   function pickRom(){ romInput.current?.click(); }
   function playBuiltIn(){ setRom(prev=>{ if(prev?.url?.startsWith('blob:')) URL.revokeObjectURL(prev.url); const cacheBust = Date.now(); return { url: `${import.meta.env.BASE_URL}roms/poachermon.sfc?cacheBust=${cacheBust}`, name: 'Poachermon (built-in)' }; }); setView('preview'); setLog('Loaded the built-in Poachermon ROM.'); }
   function onRomFile(e){ const file=e.target.files?.[0]; if(!file) return; setRom(prev=>{ if(prev?.url) URL.revokeObjectURL(prev.url); return { url: URL.createObjectURL(file), name: file.name }; }); setView('preview'); setLog(`Loaded ROM ${file.name}.`); e.target.value=''; }
@@ -565,7 +630,7 @@ function App(){
       <aside className="left">
         <section className="card"><div className="section-title"><h2>Project</h2><Pill tone={mode==='backend'?'good':'blue'}>{mode}</Pill></div><div className="project-card"><strong>{project?.name||'Loading'}</strong><span>{inventory.scene_count||0} scenes Â· {inventory.actor_count||0} actors Â· {inventory.event_chain_count||0} chains</span></div></section>
         <section className="card"><div className="section-title"><h2>Example Games</h2><Pill tone="warn">load</Pill></div>{EXAMPLES.map(ex=><button className={`row example-row ${project?.name===ex.name?'active':''}`} key={ex.slug} onClick={()=>loadExample(ex.slug, ex.name)}><span>{ex.name}</span><small>{ex.desc}</small><ChevronRight size={16}/></button>)}</section>
-        <section className="card"><div className="section-title"><h2>Scenes</h2><button className="icon" title="Add scene" onClick={openSceneForm}><Plus size={16}/></button></div>{(project?.scenes||[]).map(s=><button className={`row ${s.id===scene?.id?'active':''}`} key={s.id} onClick={()=>{setSceneId(s.id); setActorId(null);}}><span>{s.name}</span><small>{s.actors?.length||0} actors Â· {s.triggers?.length||0} triggers</small><ChevronRight size={16}/></button>)}</section>
+        <section className="card"><div className="section-title"><h2>Scenes</h2><div className="two"><button className="icon" title="Build background (preset / image)" disabled={!scene} onClick={()=>setImportingScene(true)}><Map size={16}/></button><button className="icon" title="Add scene" onClick={openSceneForm}><Plus size={16}/></button></div></div>{(project?.scenes||[]).map(s=><button className={`row ${s.id===scene?.id?'active':''}`} key={s.id} onClick={()=>{setSceneId(s.id); setActorId(null);}}><span>{s.name}</span><small>{s.actors?.length||0} actors Â· {s.triggers?.length||0} triggers</small><ChevronRight size={16}/></button>)}{scene ? <Btn className="secondary full" onClick={()=>setImportingScene(true)}><Map size={16}/>Build background</Btn> : null}</section>
         <section className="card"><div className="section-title"><h2><ImageIcon size={16}/> Assets</h2><div className="two"><button className="icon" title="Import sprite from image (AI art)" onClick={()=>setImporting(true)}><Wand2 size={16}/></button><button className="icon" title="Add sprite" onClick={openSpriteForm}><Plus size={16}/></button></div></div>{(project?.sprites||[]).map(s=><button className={`asset asset-spr ${s.id===sprite?.id?'active':''}`} key={s.id} onClick={()=>{setSpriteId(s.id); setView('sprite');}}><SpriteThumb sprite={s} scale={2}/><span>{s.name}<small>Sprite · {s.width}x{s.height} · {(s.frames||[]).length} frames</small></span></button>)}<Btn className="secondary full" onClick={()=>setImporting(true)}><Wand2 size={16}/>Import from image</Btn></section>
       </aside>
       <main className="main">
@@ -588,6 +653,7 @@ function App(){
     <PatchModal patch={patch} onClose={()=>setPatch(null)} onApply={apply}/>
     {form && <FieldModal title={form.title} fields={form.fields} initial={form.initial} submitLabel={form.submitLabel} onClose={()=>setForm(null)} onSubmit={submitForm}/>}
     {importing && <SpriteImportModal onClose={()=>setImporting(false)} onImport={importSprite}/>}
+    {importingScene && <SceneImportModal sceneName={scene?.name||'scene'} onClose={()=>setImportingScene(false)} onApply={importScene}/>}
   </div>;
 }
 
