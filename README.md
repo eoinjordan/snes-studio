@@ -1,4 +1,4 @@
-# SNES Studio 1.0.0
+﻿# SNES Studio 1.0.0
 
 SNES Studio is a kid-friendly, human-in-the-loop, agent-assisted game builder for Super Nintendo homebrew projects.
 
@@ -6,9 +6,9 @@ SNES Studio is a kid-friendly, human-in-the-loop, agent-assisted game builder fo
 
 This 1.0.0 repository is a complete publishable MVP. It gives you a polished editor shell, a real project model, scene editing primitives, sprite editing primitives, event-chain logic, safe agent patch review, C export, GitHub Pages demo mode, and local backend mode.
 
-The studio opens on its flagship template game, **Poachermon — "Gotta Save 'Em All!"** — a comedic savannah safari where a park ranger rescues wild creatures from a poacher across four scenes. It's built entirely from SNES Studio's own scene/sprite/event model (`python scripts/make_poachermon.py`).
+The studio opens on its flagship showcase game, **Pocket Bugs** - a garden-bug battler where kids catch bugs in matchboxes and battle in backyard tournaments. It's built entirely from SNES Studio's own scene/sprite/event model (`python scripts/make_pocket_bugs.py`).
 
-It is intentionally honest about the current technical boundary: **the editor and compiler pipeline work, while real playable SNES ROM generation still requires finishing the PVSnesLib runtime integration.** The current `--skip-build` command produces a placeholder `.sfc` artifact for release workflow testing, not a playable game.
+Real playable SNES ROM generation is supported when PVSnesLib is installed. The `--skip-build` path still exists for CI/release workflow testing and produces a placeholder `.sfc`.
 
 ## Why this exists
 
@@ -71,7 +71,7 @@ Open the Vite URL. If the backend is running, the UI uses local builder mode. If
 ```bash
 snes-studio validate examples/hello-human/project.snesproj --json
 snes-studio inventory examples/hello-human/project.snesproj --json
-snes-studio play examples/poachermon/project.snesproj   # play the game end to end in the terminal
+snes-studio play examples/pocket-bugs/project.snesproj   # play the game end to end in the terminal
 snes-studio export-c examples/hello-human/project.snesproj build/generated/hello-human --json
 snes-studio make:rom examples/hello-human/project.snesproj build/hello-human.sfc --skip-build --json
 scripts/validate-rom.sh build/hello-human.sfc
@@ -169,16 +169,16 @@ copyrighted ROMs are bundled and files never leave your browser. See
 
 ## Hosting the UI for free
 
-The web UI is a static Vite app (online demo mode — no backend needed). Deploy
+The web UI is a static Vite app (online demo mode â€” no backend needed). Deploy
 it on any static host:
 
-- **Vercel** — import the repo; `vercel.json` builds `web/` and serves `web/dist`.
-- **Netlify** — import the repo; `netlify.toml` sets base `web/`, publish `dist`.
-- **GitHub Pages** — push to GitHub and enable Pages; `.github/workflows/pages.yml`
+- **Vercel** â€” import the repo; `vercel.json` builds `web/` and serves `web/dist`.
+- **Netlify** â€” import the repo; `netlify.toml` sets base `web/`, publish `dist`.
+- **GitHub Pages** â€” push to GitHub and enable Pages; `.github/workflows/pages.yml`
   builds and deploys `web/` automatically.
 
 All three host only the editor + EmulatorJS front-end. They cannot run the Python
-backend or build ROMs — that needs local mode or a future hosted build service.
+backend or build ROMs â€” that needs local mode or a future hosted build service.
 
 A hosted static deploy can:
 
@@ -199,8 +199,8 @@ Installers are built on tag pushes (`v*`) by:
 
 The installers include:
 
-- **SNES Studio** — one-click desktop launcher that starts the local backend, serves the bundled web UI, opens the browser, and stores the editable Mango Island starter project in the user's app-data folder.
-- **snes-studio** — CLI for validation, export, simulation, server mode, and ROM builds.
+- **SNES Studio** â€” one-click desktop launcher that starts the local backend, serves the bundled web UI, opens the browser, and stores the editable Pocket Bugs starter project in the user's app-data folder.
+- **snes-studio** â€” CLI for validation, export, simulation, server mode, and ROM builds.
 
 The web UI includes an **Installers** card with download links. By default those
 links point to the latest GitHub release for `eoinjordan/snes-studio`. To point
@@ -224,3 +224,4 @@ See:
 - `docs/TOOLCHAIN.md`
 - `docs/EMULATOR.md`
 - `docs/HUMAN_IN_THE_LOOP.md`
+

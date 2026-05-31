@@ -1,4 +1,4 @@
-# Architecture
+﻿# Architecture
 
 ```text
 React editor / GitHub Pages
@@ -16,7 +16,7 @@ React editor / GitHub Pages
 
 ### Online demo mode
 
-Static frontend only. Loads `web/public/examples/hello-human.snesproj`, edits in memory, and downloads `.snesproj`.
+Static frontend only. Loads `web/public/examples/pocket-bugs.snesproj`, edits in memory, and downloads `.snesproj`.
 
 ### Local backend mode
 
@@ -25,3 +25,4 @@ Runs Python/FastAPI locally. Supports validation, patching, C export, and ROM ar
 ## Compiler boundary
 
 The compiler emits readable C stubs. This deliberately avoids the GB/GBA assembler trap: every platform backend should own its own runtime and codegen boundary.
+

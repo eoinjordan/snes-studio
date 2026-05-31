@@ -158,3 +158,48 @@ def export_assets(project_path: str | Path, out_dir: str | Path) -> dict[str, An
         "files": [str(out / "snesstudio_assets.h"), str(out / "snesstudio_assets.c")],
         "sprites": [s.id for s in project.sprites],
     }
+
+
+def _rgb_to_hex(rgb: tuple[int, int, int]) -> str:
+    return f"#{rgb[0]:02x}{rgb[1]:02x}{rgb[2]:02x}"
+
+
+def sprite_from_image(
+    sprite_id: str,
+    name: str,
+    image_path: str | Path,
+    width: int = 16,
+    height: int = 16,
+    colors: int = 8,
+) -> Sprite:
+    """Create a SNES Studio Sprite by quantizing an input image.
+
+    This is used by scripts/CLI to bootstrap art from real reference images.
+    """
+    try:
+        from PIL import Image
+    except Exception as exc:
+        raise RuntimeError("Pillow is required for sprite import. Install with: pip install pillow") from exc
+
+    colors = max(2, min(16, int(colors)))
+    src = Image.open(Path(image_path)).convert("RGB")
+    resized = src.resize((width, height), Image.Resampling.LANCZOS)
+    paletted = resized.quantize(colors=colors, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.FLOYDSTEINBERG)
+    pixels = list(paletted.getdata())
+    raw = paletted.getpalette() or []
+    palette: list[str] = []
+    for i in range(colors):
+        base = i * 3
+        if base + 2 >= len(raw):
+            break
+        palette.append(_rgb_to_hex((raw[base], raw[base + 1], raw[base + 2])))
+    if not palette:
+        palette = ["#000000", "#ffffff"]
+    return Sprite.model_validate({
+        "id": sprite_id,
+        "name": name,
+        "width": width,
+        "height": height,
+        "palette": palette,
+        "frames": [{"id": f"{sprite_id}_0", "name": "Frame 0", "pixels": pixels}],
+    })

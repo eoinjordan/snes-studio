@@ -1,0 +1,33 @@
+{
+  "notes": [
+    "All references sourced from Wikimedia Commons file pages.",
+    "Check each file page for exact attribution/share-alike requirements before external distribution."
+  ],
+  "sources": {
+    "ladybug": {
+      "filename": "Ladybug (6818994048).jpg",
+      "license": "Public Domain (US federal work marker on Wikimedia page)",
+      "page": "https://commons.wikimedia.org/wiki/File:Ladybug_(6818994048).jpg"
+    },
+    "beetle": {
+      "filename": "Stag Beetle, Ceruchus striatus.jpg",
+      "license": "CC BY 2.0 (Wikimedia file page)",
+      "page": "https://commons.wikimedia.org/wiki/File:Stag_Beetle,_Ceruchus_striatus.jpg"
+    },
+    "mantis": {
+      "filename": "Praying mantis on bamboo curtain.jpg",
+      "license": "CC0 1.0 (Wikimedia file page)",
+      "page": "https://commons.wikimedia.org/wiki/File:Praying_mantis_on_bamboo_curtain.jpg"
+    },
+    "garden_path": {
+      "filename": "Low angle garden path (50411312921).jpg",
+      "license": "CC BY-SA 2.0 (Wikimedia file page)",
+      "page": "https://commons.wikimedia.org/wiki/File:Low_angle_garden_path_(50411312921).jpg"
+    },
+    "backyard_scene": {
+      "filename": "Backyard Garden Scene in California.jpg",
+      "license": "CC0 1.0 (Wikimedia file page)",
+      "page": "https://commons.wikimedia.org/wiki/File:Backyard_Garden_Scene_in_California.jpg"
+    }
+  }
+}

@@ -36,9 +36,22 @@ def ensure_project() -> Path:
     data = app_data_dir()
     projects = data / "projects"
     projects.mkdir(parents=True, exist_ok=True)
-    target = projects / "mango-island.snesproj"
+    # Showcase default project used by the desktop launcher.
+    target = projects / "pocket-bugs.snesproj"
     if not target.exists():
-        source = resource_path("examples", "mango-island", "project.snesproj")
+        candidates = [
+            resource_path("examples", "pocket-bugs", "project.snesproj"),
+            resource_path("examples", "mango-island", "project.snesproj"),
+            resource_path("examples", "poachermon", "project.snesproj"),
+        ]
+        source = next((p for p in candidates if p.exists()), None)
+        if source is None:
+            raise RuntimeError(
+                "No bundled starter project found. Expected one of: "
+                "examples/pocket-bugs/project.snesproj, "
+                "examples/mango-island/project.snesproj, "
+                "examples/poachermon/project.snesproj"
+            )
         shutil.copyfile(source, target)
     return target
 

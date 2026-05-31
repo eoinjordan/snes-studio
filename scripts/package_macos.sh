@@ -20,7 +20,9 @@ chmod +x "$BIN_PAYLOAD/snes-studio"
 
 python3 -m PyInstaller --windowed --name "SNES Studio" --distpath "$APP_PAYLOAD" \
   --add-data "web/dist:web/dist" \
+  --add-data "examples/pocket-bugs:examples/pocket-bugs" \
   --add-data "examples/mango-island:examples/mango-island" \
+  --add-data "examples/poachermon:examples/poachermon" \
   scripts/snes_studio_desktop.py
 
 pkgbuild \

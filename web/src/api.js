@@ -66,7 +66,7 @@ export class StudioClient {
     } catch (_) {
       this.apiBase = '';
       this.mode = 'online';
-      const project = await this.fetchJson(`${import.meta.env.BASE_URL}examples/poachermon.snesproj`);
+      const project = await this.fetchJson(`${import.meta.env.BASE_URL}examples/pocket-bugs.snesproj`);
       this.project = project;
       return { mode: this.mode, project, inventory: this.inventory(project), blocks: await this.blocks() };
     }

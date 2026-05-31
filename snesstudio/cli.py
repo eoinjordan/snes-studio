@@ -131,6 +131,31 @@ def cmd_add_step(args):
     print_result({"added_step": args.id, "chain": args.chain}, args.json)
 
 
+def cmd_import_sprite_image(args):
+    from .assets import sprite_from_image
+    project = load_project(args.project)
+    imported = sprite_from_image(
+        sprite_id=args.id,
+        name=args.name,
+        image_path=args.image,
+        width=args.width,
+        height=args.height,
+        colors=args.colors,
+    )
+    kept = [s for s in project.sprites if s.id != args.id]
+    kept.append(imported)
+    project.sprites = kept
+    save_project(args.project, project, backup=True)
+    print_result(
+        {
+            "imported_sprite": args.id,
+            "palette_size": len(imported.palette),
+            "frame_pixels": len(imported.frames[0].pixels),
+        },
+        args.json,
+    )
+
+
 def cmd_blocks(args):
     from .blocks import block_palette
     print_result(block_palette(), args.json)
@@ -183,6 +208,16 @@ def build_parser():
     sp = sub.add_parser("add-trigger"); sp.add_argument("project"); sp.add_argument("--scene", required=True); sp.add_argument("--id", required=True); sp.add_argument("--name", default="Trigger Zone"); sp.add_argument("--x", type=int, default=0); sp.add_argument("--y", type=int, default=0); sp.add_argument("--w", type=int, default=16); sp.add_argument("--h", type=int, default=16); sp.add_argument("--event"); common(sp); sp.set_defaults(func=cmd_add_trigger)
     sp = sub.add_parser("add-event-chain"); sp.add_argument("project"); sp.add_argument("--id", required=True); sp.add_argument("--name", required=True); sp.add_argument("--trigger-type"); common(sp); sp.set_defaults(func=cmd_add_event_chain)
     sp = sub.add_parser("add-step"); sp.add_argument("project"); sp.add_argument("--chain", required=True); sp.add_argument("--id", required=True); sp.add_argument("--type", required=True); sp.add_argument("--text"); sp.add_argument("--scene"); sp.add_argument("--actor"); sp.add_argument("--flag"); sp.add_argument("--value"); sp.add_argument("--dx", type=int); sp.add_argument("--dy", type=int); sp.add_argument("--frames", type=int); sp.add_argument("--sound"); sp.add_argument("--music"); sp.add_argument("--frame"); common(sp); sp.set_defaults(func=cmd_add_step)
+    sp = sub.add_parser("import-sprite-image", help="Import/replace a sprite by quantizing an image into SNES Studio palette-indexed pixels")
+    sp.add_argument("project")
+    sp.add_argument("--id", required=True)
+    sp.add_argument("--name", required=True)
+    sp.add_argument("--image", required=True)
+    sp.add_argument("--width", type=int, default=16)
+    sp.add_argument("--height", type=int, default=16)
+    sp.add_argument("--colors", type=int, default=8)
+    common(sp)
+    sp.set_defaults(func=cmd_import_sprite_image)
     sp = sub.add_parser("serve"); sp.add_argument("project"); sp.add_argument("--host", default="127.0.0.1"); sp.add_argument("--port", type=int, default=8765); sp.set_defaults(func=cmd_serve)
     return p
 

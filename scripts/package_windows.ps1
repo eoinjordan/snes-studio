@@ -19,7 +19,9 @@ New-Item -ItemType Directory -Force -Path $dist | Out-Null
 python -m PyInstaller --onefile --name snes-studio --distpath $payload scripts/snes_studio_cli.py
 python -m PyInstaller --onefile --windowed --name "SNES Studio" --distpath $payload `
   --add-data "web/dist;web/dist" `
+  --add-data "examples/pocket-bugs;examples/pocket-bugs" `
   --add-data "examples/mango-island;examples/mango-island" `
+  --add-data "examples/poachermon;examples/poachermon" `
   scripts/snes_studio_desktop.py
 
 $iscc = Get-Command iscc.exe -ErrorAction SilentlyContinue

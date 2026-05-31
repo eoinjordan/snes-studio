@@ -1,5 +1,11 @@
 [
   {
+    "id": "pocket-bugs",
+    "name": "Pocket Bugs",
+    "description": "Original bug-battler RPG demo: catch bugs in a garden and battle in a neighborhood matchbox tournament.",
+    "file": "examples/pocket-bugs.snesproj"
+  },
+  {
     "id": "poachermon",
     "name": "Poachermon",
     "description": "Comedic savannah safari: rescue wild creatures from a poacher across 5 scenes.",

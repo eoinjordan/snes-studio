@@ -1,13 +1,8 @@
-# Features
+﻿# Features
 
-## Launch template game
+## Launch showcase game
 
-SNES Studio opens on **Poachermon — "Gotta Save 'Em All!"**, a comedic
-African-savannah safari. You play a park ranger who sets camera traps, rescues
-wild creatures (elephant, rhino, lion cub, bird) and chases a red-capped poacher
-across four scenes (Ranger Station → Savannah → Chase → Rescue). It's authored
-entirely with SNES Studio's own scene/sprite/event-chain model — regenerate it
-with `python scripts/make_poachermon.py`.
+SNES Studio opens on **Pocket Bugs**, an original garden-bug battler. You catch bugs in the backyard, carry them in small matchboxes, and battle in a local tournament across exploration and arena scenes. It's authored entirely with SNES Studio's own scene/sprite/event-chain model - regenerate it with `python scripts/make_pocket_bugs.py`.
 
 ## 1.0.0 included
 
@@ -33,4 +28,5 @@ with `python scripts/make_poachermon.py`.
 
 - True Blockly drag/drop workspace.
 - Multi-user classroom accounts.
-- A hosted (cloud) ROM build service — building still requires local PVSnesLib.
+- A hosted (cloud) ROM build service â€” building still requires local PVSnesLib.
+
