@@ -13,7 +13,11 @@
 - [x] Implement real actor drag/move writes.
 - [x] Implement sprite pixel painting writes.
 - [x] Add UI forms for scene/actor/event creation.
-- Add collision/trigger zone drawing (currently render-only).
-- Add PVSnesLib runtime text box.
-- Add tile conversion pipeline.
-- Add browser ROM preview without bundling copyrighted ROMs.
+- [x] Add collision/trigger zone drawing (currently render-only).
+- [x] Add PVSnesLib runtime text box.
+- Verify/complete tile conversion pipeline and asset runtime integration.
+- Fix built-in ROM startup/PPU artifact: green vertical stripes in EmulatorJS preview, likely from tilemap/tile asset initialization or wrong background load order.
+- Improve sprite/scene asset quality: richer sprite painting, higher-quality scene backgrounds, and better palette/tile editing.
+- Complete scene editor workflow: full scene layout editing, collision/trigger drawing, and map painting.
+- Complete interaction scripting and dialogue actions: trigger-based event scripts, actor interactions, and in-editor dialogue authoring.
+- local installer for windows

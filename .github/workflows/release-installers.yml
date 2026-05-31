@@ -1,0 +1,43 @@
+name: Release Installers
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows-installer:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
+      - name: Build Windows installer
+        shell: pwsh
+        run: |
+          ./scripts/package_windows.ps1 -Version "${{ github.ref_name }}"
+      - name: Upload release asset (Windows)
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/SNES-Studio-Setup.exe
+
+  build-macos-installer:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Build macOS package
+        run: |
+          chmod +x scripts/package_macos.sh
+          ./scripts/package_macos.sh "${{ github.ref_name }}"
+      - name: Upload release asset (macOS)
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/SNES-Studio-macOS.pkg

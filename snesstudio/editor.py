@@ -32,6 +32,19 @@ def rename_scene(project: Project | dict[str, Any], scene_id: str, name: str) ->
     raise KeyError(f"scene not found: {scene_id}")
 
 
+def update_scene(project: Project | dict[str, Any], scene_id: str, **fields: Any) -> dict[str, Any]:
+    p = _clone(project)
+    scene = p.scene_by_id(scene_id)
+    data = scene.model_dump()
+    data.update({k: v for k, v in fields.items() if v is not None})
+    updated = Scene.model_validate(data)
+    scene.name = updated.name
+    scene.background = updated.background
+    scene.paint = updated.paint
+    scene.notes = updated.notes
+    return _dict(p)
+
+
 def add_actor(project: Project | dict[str, Any], scene_id: str, actor_id: str, name: str, x: int = 0, y: int = 0, sprite: str | None = None) -> dict[str, Any]:
     p = _clone(project)
     scene = p.scene_by_id(scene_id)
@@ -76,10 +89,54 @@ def add_collision(project: Project | dict[str, Any], scene_id: str, collision_id
     return _dict(p)
 
 
+def update_collision(project: Project | dict[str, Any], scene_id: str, collision_id: str, **fields: Any) -> dict[str, Any]:
+    p = _clone(project)
+    scene = p.scene_by_id(scene_id)
+    for i, rect in enumerate(scene.collision):
+        if rect.id == collision_id:
+            data = rect.model_dump()
+            data.update({k: v for k, v in fields.items() if v is not None})
+            scene.collision[i] = Collision.model_validate(data)
+            return _dict(p)
+    raise KeyError(f"collision not found: {collision_id}")
+
+
+def delete_collision(project: Project | dict[str, Any], scene_id: str, collision_id: str) -> dict[str, Any]:
+    p = _clone(project)
+    scene = p.scene_by_id(scene_id)
+    before = len(scene.collision)
+    scene.collision = [c for c in scene.collision if c.id != collision_id]
+    if len(scene.collision) == before:
+        raise KeyError(f"collision not found: {collision_id}")
+    return _dict(p)
+
+
 def add_trigger(project: Project | dict[str, Any], scene_id: str, trigger_id: str, name: str, x: int, y: int, w: int, h: int, event: str | None = None) -> dict[str, Any]:
     p = _clone(project)
     scene = p.scene_by_id(scene_id)
     scene.triggers.append(Zone(id=trigger_id, name=name, x=x, y=y, w=w, h=h, event=event))
+    return _dict(p)
+
+
+def update_trigger(project: Project | dict[str, Any], scene_id: str, trigger_id: str, **fields: Any) -> dict[str, Any]:
+    p = _clone(project)
+    scene = p.scene_by_id(scene_id)
+    for i, zone in enumerate(scene.triggers):
+        if zone.id == trigger_id:
+            data = zone.model_dump()
+            data.update({k: v for k, v in fields.items() if v is not None})
+            scene.triggers[i] = Zone.model_validate(data)
+            return _dict(p)
+    raise KeyError(f"trigger not found: {trigger_id}")
+
+
+def delete_trigger(project: Project | dict[str, Any], scene_id: str, trigger_id: str) -> dict[str, Any]:
+    p = _clone(project)
+    scene = p.scene_by_id(scene_id)
+    before = len(scene.triggers)
+    scene.triggers = [t for t in scene.triggers if t.id != trigger_id]
+    if len(scene.triggers) == before:
+        raise KeyError(f"trigger not found: {trigger_id}")
     return _dict(p)
 
 

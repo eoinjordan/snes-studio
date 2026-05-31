@@ -108,6 +108,7 @@ class Scene(BaseModel):
     actors: list[Actor] = Field(default_factory=list)
     collision: list[Collision] = Field(default_factory=list)
     triggers: list[Zone] = Field(default_factory=list)
+    paint: list[int] = Field(default_factory=lambda: [0] * (32 * 28))
     notes: str | None = None
 
     @field_validator("actors")
@@ -116,6 +117,14 @@ class Scene(BaseModel):
         ids = [actor.id for actor in value]
         if len(ids) != len(set(ids)):
             raise ValueError("actor ids must be unique within a scene")
+        return value
+
+    @field_validator("paint")
+    @classmethod
+    def valid_paint_size(cls, value: list[int]) -> list[int]:
+        expected = 32 * 28
+        if len(value) != expected:
+            raise ValueError(f"scene paint must have {expected} cells")
         return value
 
 class Asset(BaseModel):

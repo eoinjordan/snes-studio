@@ -8,8 +8,10 @@ dist/
 *.egg-info/
 web/node_modules/
 web/dist/
+tmp-e2e/
 .DS_Store
 .env
 *.sfc
 *.smc
 !examples/**/*.sfc
+!web/public/roms/*.sfc

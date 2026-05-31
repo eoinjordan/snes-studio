@@ -77,6 +77,31 @@ snes-studio make:rom examples/hello-human/project.snesproj build/hello-human.sfc
 scripts/validate-rom.sh build/hello-human.sfc
 ```
 
+## Automated testing
+
+Backend and compiler integration tests:
+
+```bash
+python -m pytest -q
+```
+
+This suite includes ROM-input integration checks (project edits -> generated
+`main.c`/tilemaps via `make:rom --skip-build`).
+
+Browser E2E workflow tests (Playwright):
+
+```bash
+cd web
+npm install
+npx playwright install --with-deps chromium
+npm run test:e2e
+```
+
+Playwright starts both local services automatically:
+
+- `snes-studio serve examples/hello-human/project.snesproj --port 8765`
+- `vite dev --host 127.0.0.1 --port 5173`
+
 ## Editor API examples
 
 ```bash
@@ -163,6 +188,26 @@ A hosted static deploy can:
 - apply patches after human review
 - download `.snesproj`
 - play a homebrew `.sfc`/`.smc` you load in the ROM Preview tab
+
+## Desktop installers (Windows + macOS)
+
+Installers are built on tag pushes (`v*`) by:
+
+- `.github/workflows/release-installers.yml`
+- `scripts/package_windows.ps1` -> `dist/SNES-Studio-Setup.exe`
+- `scripts/package_macos.sh` -> `dist/SNES-Studio-macOS.pkg`
+
+The web UI includes an **Installers** card with download links. To point those
+links to your GitHub release assets, set:
+
+```bash
+VITE_GITHUB_REPO=owner/repo
+```
+
+If `VITE_GITHUB_REPO` is not set, the UI links to local static paths:
+
+- `/downloads/SNES-Studio-Setup.exe`
+- `/downloads/SNES-Studio-macOS.pkg`
 
 ## What 1.0.0 means
 

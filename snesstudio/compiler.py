@@ -34,7 +34,7 @@ def emit_step(step: EventStep, indent: int = 4) -> list[str]:
     if step.type == "show_text":
         lines.append(f'{pad}snesstudio_show_text("{quote(step.text)}");')
     elif step.type == "change_scene":
-        lines.append(f'{pad}snesstudio_change_scene("{quote(step.scene)}");')
+        lines.append(f'{pad}load_scene("{quote(step.scene)}");')
     elif step.type == "move_actor":
         lines.append(f'{pad}snesstudio_move_actor("{quote(step.actor)}", {step.dx or 0}, {step.dy or 0});')
     elif step.type == "face_player":
@@ -42,6 +42,9 @@ def emit_step(step: EventStep, indent: int = 4) -> list[str]:
     elif step.type == "set_flag":
         value = 1 if bool(step.value) else 0
         lines.append(f'{pad}snesstudio_set_flag("{quote(step.flag)}", {value});')
+    elif step.type == "set_variable":
+        value = step.value if isinstance(step.value, int) else (1 if bool(step.value) else 0)
+        lines.append(f'{pad}snesstudio_set_variable("{quote(step.variable)}", {value});')
     elif step.type == "if_flag":
         lines.append(f'{pad}if (snesstudio_get_flag("{quote(step.flag)}")) {{')
         for child in step.then:

@@ -5,16 +5,61 @@
  * This file is designed to be readable for learners and mentors.
  */
 
+static const char *current_scene_id = "";
+{% for scene in project.scenes %}{% for zone in scene.triggers %}{% if zone.event %}
+static unsigned char fired_{{ scene.id|c_ident }}_{{ zone.id|c_ident }} = 0;
+{% endif %}{% endfor %}{% endfor %}
+
+void load_scene(const char *scene_id);
+{% for chain in project.eventChains %}
+void event_{{ chain.id|c_ident }}(void);
+{% endfor %}
+
 {% for chain in project.eventChains %}
 void event_{{ chain.id|c_ident }}(void) {
 {{ chain|chain_body }}
 }
 
 {% endfor %}
+void snesstudio_on_action(void) {
+{% for scene in project.scenes %}
+    if (snesstudio_str_eq(current_scene_id, "{{ scene.id }}")) {
+{% for actor in scene.actors %}{% set ev = actor.events.get('interact') if actor.events else None %}
+{% if ev %}
+        if (snesstudio_player_near({{ actor.x }}, {{ actor.y }}, 16, 16)) { event_{{ ev|c_ident }}(); return; }
+{% endif %}
+{% endfor %}
+        return;
+    }
+{% endfor %}
+}
+
+void snesstudio_on_step(void) {
+{% for scene in project.scenes %}
+    if (snesstudio_str_eq(current_scene_id, "{{ scene.id }}")) {
+{% for zone in scene.triggers %}
+{% if zone.event %}
+        if (snesstudio_player_in_zone({{ zone.x }}, {{ zone.y }}, {{ zone.w }}, {{ zone.h }})) {
+            if (!fired_{{ scene.id|c_ident }}_{{ zone.id|c_ident }}) {
+                fired_{{ scene.id|c_ident }}_{{ zone.id|c_ident }} = 1;
+                event_{{ zone.event|c_ident }}();
+                return;
+            }
+        } else {
+            fired_{{ scene.id|c_ident }}_{{ zone.id|c_ident }} = 0;
+        }
+{% endif %}
+{% endfor %}
+        return;
+    }
+{% endfor %}
+}
+
 void load_scene(const char *scene_id) {
     snesstudio_log("Loading scene");
 {% for scene in project.scenes %}
     if (snesstudio_str_eq(scene_id, "{{ scene.id }}")) {
+        current_scene_id = "{{ scene.id }}";
         snesstudio_set_scene("{{ scene.id }}", "{{ scene.name }}");
 {% for actor in scene.actors %}
         snesstudio_place_actor("{{ actor.id }}", "{{ actor.name }}", {{ actor.x }}, {{ actor.y }}, "{{ actor.sprite or '' }}");

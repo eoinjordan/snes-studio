@@ -121,6 +121,27 @@ def test_poachermon_plays_through_to_a_win():
     assert "The Throttle of Justice" in text  # final beat reached
 
 
+def test_mango_island_demake_plays_and_exports_runtime_hooks(tmp_path):
+    from snesstudio import sim
+
+    project_path = Path('examples/mango-island/project.snesproj')
+    run = sim.play_from_file(project_path)
+    assert run.scenes_visited == ['dock', 'tavern', 'jungle', 'cave', 'vault']
+    assert run.flags.get('treasure_found') is True
+    assert run.variables.get('score') == 100
+    assert "golden mango" in run.text()
+
+    out = tmp_path / 'mango'
+    export_c(project_path, out)
+    main_c = (out / 'main.c').read_text()
+    runtime_h = (out / 'snesstudio_runtime.h').read_text()
+    assert 'void snesstudio_on_action(void)' in main_c
+    assert 'void snesstudio_on_step(void)' in main_c
+    assert 'load_scene("tavern");' in main_c
+    assert 'snesstudio_set_variable("score", 100);' in main_c
+    assert 'int snesstudio_player_near' in runtime_h
+
+
 def test_project_loads_and_inventory():
     project = load_project(PROJECT)
     inv = inventory(project)
@@ -154,13 +175,31 @@ def test_editor_sprite_paint_roundtrip_and_delete_step():
     assert robot is not None
     assert robot['frames'][0]['pixels'][0] == 2
     # original is untouched
-    assert json.loads(PROJECT.read_text())['sprites'][0]['frames'][0]['pixels'] == []
+    assert original['sprites'][0]['frames'][0]['pixels'] != pixels
 
     chain = next_data['eventChains'][0]
     with_step = editor.add_event_step(next_data, chain['id'], {'id': 'tmp_step', 'type': 'show_text', 'text': 'hi'})
     pruned = editor.delete_event_step(with_step, chain['id'], 'tmp_step')
     pruned_chain = next(c for c in pruned['eventChains'] if c['id'] == chain['id'])
     assert all(s['id'] != 'tmp_step' for s in pruned_chain['steps'])
+
+
+def test_editor_add_sprite_roundtrip_and_converts_to_assets():
+    original = json.loads(PROJECT.read_text())
+    pixels = [0] * (8 * 8)
+    pixels[0] = 1
+    next_data = editor.add_sprite(original, {
+        'id': 'qa_sprite',
+        'name': 'QA Sprite',
+        'width': 8,
+        'height': 8,
+        'palette': ['#000000', '#ffffff', '#67e8f9', '#ef4444'],
+        'frames': [{'id': 'idle_0', 'name': 'Idle', 'pixels': pixels}],
+    })
+    sprite = next(s for s in next_data['sprites'] if s['id'] == 'qa_sprite')
+    converted = assets.sprite_assets(sprite)
+    assert converted['frames'][0]['tiles'][0] == 0x80
+    assert all(s['id'] != 'qa_sprite' for s in original['sprites'])
 
 
 def test_agent_patch_applies():

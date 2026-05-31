@@ -11,6 +11,15 @@ def _slug(text: str) -> str:
     return value or "helper_patch"
 
 
+def _unique(base: str, existing: set[str]) -> str:
+    if base not in existing:
+        return base
+    n = 2
+    while f"{base}_{n}" in existing:
+        n += 1
+    return f"{base}_{n}"
+
+
 def propose_patch(project: Project, prompt: str) -> dict[str, Any]:
     prompt_l = prompt.lower()
     scene_id = project.scenes[0].id if project.scenes else "start"
@@ -21,10 +30,10 @@ def propose_patch(project: Project, prompt: str) -> dict[str, Any]:
         title = "Add friendly robot helper"
         base_chain_id = "robot_hint_chain"
         existing_chains = {c.id for c in project.eventChains}
-        chain_id = base_chain_id if base_chain_id not in existing_chains else "robot_hint_chain_2"
+        chain_id = _unique(base_chain_id, existing_chains)
         base_actor_id = "friendly_robot"
         existing_actors = {a.id for scene in project.scenes for a in scene.actors}
-        actor_id = base_actor_id if base_actor_id not in existing_actors else "friendly_robot_2"
+        actor_id = _unique(base_actor_id, existing_actors)
         changes.extend([
             {"op": "add_actor", "scene": scene_id, "actor": {"id": actor_id, "name": "Friendly Robot", "x": 112, "y": 120, "sprite": "robot"}},
             {"op": "add_event_chain", "chain": {"id": chain_id, "name": "Robot Hint Chain", "trigger": {"type": "actor_interact", "actor": actor_id}}},

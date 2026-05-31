@@ -13,11 +13,17 @@ void snesstudio_move_actor(const char *actor_id, int dx, int dy);
 void snesstudio_face_player(const char *actor_id);
 void snesstudio_set_flag(const char *flag, int value);
 int snesstudio_get_flag(const char *flag);
+void snesstudio_set_variable(const char *variable, int value);
+int snesstudio_get_variable(const char *variable);
 void snesstudio_wait(int frames);
 void snesstudio_play_sound(const char *sound);
 void snesstudio_play_music(const char *music);
 void snesstudio_hide_actor(const char *actor_id);
 void snesstudio_show_actor(const char *actor_id);
 void snesstudio_set_sprite_frame(const char *actor_id, const char *frame);
+int snesstudio_player_near(int x, int y, int w, int h);
+int snesstudio_player_in_zone(int x, int y, int w, int h);
+void snesstudio_on_action(void);
+void snesstudio_on_step(void);
 
 #endif

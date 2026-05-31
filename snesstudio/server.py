@@ -20,10 +20,19 @@ class PromptRequest(BaseModel):
 class PatchRequest(BaseModel):
     patch: dict[str, Any]
 
+class ProjectRequest(BaseModel):
+    project: dict[str, Any]
+
 class SceneRequest(BaseModel):
     id: str
     name: str
     background: str | None = None
+
+class SceneUpdateRequest(BaseModel):
+    name: str | None = None
+    background: str | None = None
+    paint: list[int] | None = None
+    notes: str | None = None
 
 class ActorRequest(BaseModel):
     id: str
@@ -78,6 +87,16 @@ def create_app(project_path: str) -> FastAPI:
     @app.get("/api/project")
     def get_project(): return model_to_jsonable(read())
 
+    @app.post("/api/project")
+    def replace_project(req: ProjectRequest):
+        project = Project.model_validate(req.project)
+        backup = save_project(path, project, backup=True)
+        return {
+            "backup": str(backup) if backup else None,
+            "project": model_to_jsonable(project),
+            "inventory": inventory(project),
+        }
+
     @app.get("/api/inventory")
     def get_inventory(): return inventory(read())
 
@@ -106,8 +125,10 @@ def create_app(project_path: str) -> FastAPI:
         data = editor.add_scene(model_to_jsonable(read()), req.id, req.name, req.background); backup = write(data); return {"backup": backup, "project": data}
 
     @app.patch("/api/scenes/{scene_id}")
-    def api_rename_scene(scene_id: str, req: SceneRequest):
-        data = editor.rename_scene(model_to_jsonable(read()), scene_id, req.name); backup = write(data); return {"backup": backup, "project": data}
+    def api_update_scene(scene_id: str, req: SceneUpdateRequest):
+        try:
+            data = editor.update_scene(model_to_jsonable(read()), scene_id, name=req.name, background=req.background, paint=req.paint, notes=req.notes); backup = write(data); return {"backup": backup, "project": data}
+        except KeyError as exc: raise HTTPException(status_code=404, detail=str(exc))
 
     @app.post("/api/scenes/{scene_id}/actors")
     def api_add_actor(scene_id: str, req: ActorRequest):
@@ -125,9 +146,33 @@ def create_app(project_path: str) -> FastAPI:
     def api_collision(scene_id: str, req: RectRequest):
         data = editor.add_collision(model_to_jsonable(read()), scene_id, req.id, req.x, req.y, req.w, req.h); backup = write(data); return {"backup": backup, "project": data}
 
+    @app.patch("/api/scenes/{scene_id}/collision/{collision_id}")
+    def api_update_collision(scene_id: str, collision_id: str, req: RectRequest):
+        try:
+            data = editor.update_collision(model_to_jsonable(read()), scene_id, collision_id, x=req.x, y=req.y, w=req.w, h=req.h); backup = write(data); return {"backup": backup, "project": data}
+        except KeyError as exc: raise HTTPException(status_code=404, detail=str(exc))
+
+    @app.delete("/api/scenes/{scene_id}/collision/{collision_id}")
+    def api_delete_collision(scene_id: str, collision_id: str):
+        try:
+            data = editor.delete_collision(model_to_jsonable(read()), scene_id, collision_id); backup = write(data); return {"backup": backup, "project": data}
+        except KeyError as exc: raise HTTPException(status_code=404, detail=str(exc))
+
     @app.post("/api/scenes/{scene_id}/triggers")
     def api_trigger(scene_id: str, req: TriggerRequest):
         data = editor.add_trigger(model_to_jsonable(read()), scene_id, req.id, req.name, req.x, req.y, req.w, req.h, req.event); backup = write(data); return {"backup": backup, "project": data}
+
+    @app.patch("/api/scenes/{scene_id}/triggers/{trigger_id}")
+    def api_update_trigger(scene_id: str, trigger_id: str, req: TriggerRequest):
+        try:
+            data = editor.update_trigger(model_to_jsonable(read()), scene_id, trigger_id, name=req.name, x=req.x, y=req.y, w=req.w, h=req.h, event=req.event); backup = write(data); return {"backup": backup, "project": data}
+        except KeyError as exc: raise HTTPException(status_code=404, detail=str(exc))
+
+    @app.delete("/api/scenes/{scene_id}/triggers/{trigger_id}")
+    def api_delete_trigger(scene_id: str, trigger_id: str):
+        try:
+            data = editor.delete_trigger(model_to_jsonable(read()), scene_id, trigger_id); backup = write(data); return {"backup": backup, "project": data}
+        except KeyError as exc: raise HTTPException(status_code=404, detail=str(exc))
 
     @app.post("/api/event-chains")
     def api_chain(req: ChainRequest):
