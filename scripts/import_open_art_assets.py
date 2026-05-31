@@ -1,14 +1,17 @@
-"""Import CC0 OpenGameArt sprite packs into bundled projects/templates.
+"""Import listed OpenGameArt packs into bundled projects/templates.
 
-Sources used by this script:
-- Puny Characters by Shade, CC0: https://opengameart.org/content/puny-characters
-- 16x16 Puny World Tileset by Shade, CC0: https://opengameart.org/content/16x16-puny-world-tileset
-- 16x16 Puny Dungeon Tileset by Shade, CC0: https://opengameart.org/content/16x16-puny-dungeon-tileset
-- Ambient Pixel Art Insects by madameberry, CC0: https://opengameart.org/content/ambient-pixel-art-insects
+Primary sources requested for this art pass:
+- 16xx16 Tileset (Pokemon/Zelda style:D) by Damian Gasinski aka Gassasin, CC-BY 3.0
+- A Battle Theme (165 BPM) by Wanwaka, CC-BY 4.0
+- Tuxemon tileset by Buch, CC-BY-SA 3.0
+- Retro Tileset by Paul Barden / Damian Gasinski aka Gassasin, CC-BY 3.0
+- RPGui HUD - Asset Pack by Narehop, CC-BY 4.0
+- Tiny16 Tileset by Fuwaneko Games, CC-BY 3.0
 
-The source packs are downloaded into build/assetpacks and converted into the
-palette-indexed JSON format used by .snesproj files. The projects therefore do
-not depend on the downloaded files at runtime.
+OPMon Center is intentionally not embedded: its OGA page lists GPL 3.0 and
+contains a public licensing/trademark concern in the comments. Pocket Bugs bug
+creatures still use Ambient Pixel Art Insects by madameberry, CC0, because the
+requested list is tile/UI/music heavy and does not contain bug creature sheets.
 """
 from __future__ import annotations
 
@@ -23,27 +26,41 @@ from typing import Iterable
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parent.parent
-CACHE = ROOT / "build" / "assetpacks"
+CACHE = ROOT / "build" / "assetpacks" / "listed"
+BUG_CACHE = ROOT / "build" / "assetpacks" / "cutebugs"
 COLS, ROWS = 32, 28
 
 SOURCES = {
-    "puny_characters": {
-        "url": "https://opengameart.org/sites/default/files/puny-characters.zip",
-        "file": CACHE / "puny-characters.zip",
-        "dir": CACHE / "puny-characters",
+    "gassasin_pokemonzelda": {
+        "url": "https://opengameart.org/sites/default/files/16x16RetroTileset.zip",
+        "file": CACHE / "gassasin-retro.zip",
+        "dir": CACHE / "gassasin-retro",
     },
-    "puny_world": {
-        "url": "https://opengameart.org/sites/default/files/punyworld-overworld-tileset_0.png",
-        "file": CACHE / "punyworld-overworld-tileset.png",
+    "battle_165": {
+        "url": "https://opengameart.org/sites/default/files/battle_165.wav",
+        "file": CACHE / "battle_165.wav",
     },
-    "puny_dungeon": {
-        "url": "https://opengameart.org/sites/default/files/punyworld-dungeon-tileset.png",
-        "file": CACHE / "punyworld-dungeon-tileset.png",
+    "tuxemon_tileset": {
+        "url": "https://opengameart.org/sites/default/files/sheet_6.png",
+        "file": CACHE / "tuxemon-sheet.png",
     },
-    "cute_bugs": {
+    "retro_tileset": {
+        "url": "https://opengameart.org/sites/default/files/tilesets_7.zip",
+        "file": CACHE / "retro-tilesets.zip",
+        "dir": CACHE / "retro-tilesets",
+    },
+    "rpgui_hud": {
+        "url": "https://opengameart.org/sites/default/files/RPGui_free_1.png",
+        "file": CACHE / "rpgui-free.png",
+    },
+    "tiny16": {
+        "url": "https://opengameart.org/sites/default/files/tiny-16.png",
+        "file": CACHE / "tiny-16.png",
+    },
+    "ambient_insects": {
         "url": "https://opengameart.org/sites/default/files/cutebugs_by_madameberry.zip",
-        "file": CACHE / "cutebugs_by_madameberry.zip",
-        "dir": CACHE / "cutebugs",
+        "file": ROOT / "build" / "assetpacks" / "cutebugs_by_madameberry.zip",
+        "dir": BUG_CACHE,
     },
 }
 
@@ -60,17 +77,14 @@ PROJECTS = [
     ROOT / "web" / "public" / "templates" / "town-tales.snesproj",
 ]
 
-CHAR_DIR = CACHE / "puny-characters" / "Puny-Characters"
-BUG_DIR = CACHE / "cutebugs"
-
-CHARACTER_SHEETS = {
-    "hero": "Warrior-Blue.png",
-    "rival": "Warrior-Red.png",
-    "judge": "Mage-Cyan.png",
-    "ranger": "Archer-Green.png",
-    "poacher": "Soldier-Red.png",
-    "robot": "Soldier-Yellow.png",
-    "npc": "Character-Base.png",
+ROLE_TINTS = {
+    "hero": (54, 112, 214),
+    "rival": (209, 61, 68),
+    "judge": (139, 83, 188),
+    "ranger": (57, 139, 75),
+    "poacher": (104, 77, 58),
+    "robot": (78, 164, 184),
+    "npc": (222, 159, 71),
 }
 
 BUG_SHEETS = {
@@ -79,25 +93,26 @@ BUG_SHEETS = {
     "mantis": "dragonfly.png",
     "moth": "moth.png",
     "bee": "bee.png",
-    "slime": "Slime.png",
-    "animal": "Slime.png",
+    "animal": "moth.png",
+    "slime": "gnat.png",
 }
 
-# Hand-picked source rectangles from Puny World/Puny Dungeon sheets.
+# Source rectangles are tile coordinates in 16px cells unless noted otherwise.
 OBJECT_RECTS = {
-    "tree": (0, 432, 32, 48),
-    "house": (192, 480, 48, 48),
-    "roof": (0, 656, 48, 32),
-    "box": (112, 464, 32, 32),
-    "sign": (64, 480, 32, 32),
-    "chest": (80, 464, 32, 32),
-    "stone": (0, 160, 32, 32),
+    "house": (CACHE / "gassasin-retro" / "PokemonLike.png", 2, 0, 2, 2),
+    "tree": (CACHE / "tuxemon-sheet.png", 3, 1, 2, 2),
+    "sign": (CACHE / "tiny-16.png", 0, 0, 1, 1),
+    "box": (CACHE / "rpgui-free.png", 0, 0, 2, 1),
+    "matchbox": (CACHE / "rpgui-free.png", 0, 0, 2, 1),
+    "chest": (CACHE / "gassasin-retro" / "PokemonLike.png", 10, 0, 1, 1),
+    "jeep": (CACHE / "retro-tilesets" / "Outside_B.png", 9, 4, 2, 2),
+    "stone": (CACHE / "tuxemon-sheet.png", 0, 0, 2, 2),
 }
 
 SCENE_PALETTE = [
-    "#050505", "#5fae4b", "#9ccc5a", "#c8a85a", "#1a9fb0", "#2f6b35",
-    "#8a5a2b", "#d6b35d", "#d6d0a6", "#f7f1c2", "#d84a32", "#27313a",
-    "#686f6a", "#aab0a2", "#e8874f", "#ffffff",
+    "#141414", "#65b747", "#9ed45c", "#cda761", "#4593ad", "#2f7838",
+    "#8d6230", "#d9bf68", "#dcd4ae", "#fff4c2", "#d94e38", "#29313a",
+    "#6a706b", "#b7bdad", "#e58a56", "#ffffff",
 ]
 
 
@@ -122,20 +137,16 @@ def rgba(path: Path) -> Image.Image:
     return Image.open(path).convert("RGBA")
 
 
-def transparent_bbox(img: Image.Image) -> tuple[int, int, int, int] | None:
-    alpha = img.getchannel("A")
-    return alpha.getbbox()
-
-
-def fit_to_32(img: Image.Image, margin: int = 1) -> Image.Image:
+def fit_to_32(img: Image.Image, margin: int = 0) -> Image.Image:
     img = img.convert("RGBA")
-    box = transparent_bbox(img)
+    box = img.getchannel("A").getbbox()
     if not box:
         return Image.new("RGBA", (32, 32), (0, 0, 0, 0))
     crop = img.crop(box)
     max_side = 32 - margin * 2
     scale = min(max_side / crop.width, max_side / crop.height)
-    scale = max(1, int(scale)) if crop.width <= 16 and crop.height <= 16 else scale
+    if crop.width <= 16 and crop.height <= 16:
+        scale = max(1, int(scale))
     nw = max(1, min(max_side, int(crop.width * scale)))
     nh = max(1, min(max_side, int(crop.height * scale)))
     resized = crop.resize((nw, nh), Image.Resampling.NEAREST)
@@ -144,26 +155,39 @@ def fit_to_32(img: Image.Image, margin: int = 1) -> Image.Image:
     return out
 
 
-def crop_character(sheet: str, col: int = 0, row: int = 0) -> Image.Image:
-    src = rgba(CHAR_DIR / sheet)
-    return fit_to_32(src.crop((col * 32, row * 32, col * 32 + 32, row * 32 + 32)))
+def tint_character(img: Image.Image, tint: tuple[int, int, int]) -> Image.Image:
+    out = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    pixels = []
+    for r, g, b, a in img.getdata():
+        if a < 32:
+            pixels.append((0, 0, 0, 0))
+            continue
+        # Preserve skin and dark outlines; tint clothing/hair enough to make roles distinct.
+        is_skin = r > 135 and 70 < g < 150 and b < 120
+        is_outline = r < 45 and g < 45 and b < 45
+        if is_skin or is_outline:
+            pixels.append((r, g, b, a))
+        else:
+            pixels.append(((r + tint[0]) // 2, (g + tint[1]) // 2, (b + tint[2]) // 2, a))
+    out.putdata(pixels)
+    return out
 
 
-def crop_bug(sheet: str) -> Image.Image:
-    if sheet == "Slime.png":
-        src = rgba(CHAR_DIR / sheet).crop((0, 0, 32, 32))
-    else:
-        src = rgba(BUG_DIR / sheet)
-    return fit_to_32(src, margin=2)
+def character_image(kind: str, variant: int) -> Image.Image:
+    path = CACHE / "gassasin-retro" / "CharacterAnimation" / "Idle" / f"Untitled-0_{variant % 4}.png"
+    return fit_to_32(tint_character(rgba(path), ROLE_TINTS[kind]), margin=1)
 
 
-def crop_object(kind: str) -> Image.Image:
-    if kind in {"stone", "chest"}:
-        src = rgba(SOURCES["puny_dungeon"]["file"])
-    else:
-        src = rgba(SOURCES["puny_world"]["file"])
-    x, y, w, h = OBJECT_RECTS.get(kind, OBJECT_RECTS["box"])
-    return fit_to_32(src.crop((x, y, x + w, y + h)), margin=0)
+def bug_image(kind: str) -> Image.Image:
+    sheet = BUG_SHEETS[kind]
+    return fit_to_32(rgba(BUG_CACHE / sheet), margin=2)
+
+
+def object_image(kind: str) -> Image.Image:
+    path, tx, ty, tw, th = OBJECT_RECTS.get(kind, OBJECT_RECTS["box"])
+    src = rgba(path)
+    crop = src.crop((tx * 16, ty * 16, (tx + tw) * 16, (ty + th) * 16))
+    return fit_to_32(crop, margin=0)
 
 
 def hex_color(rgb: tuple[int, int, int]) -> str:
@@ -217,8 +241,8 @@ def sprite_payload(sprite: dict, img: Image.Image, source_name: str) -> dict:
         "height": 32,
         "palette": ["#000000"] + [hex_color(c) for c in pal_rgb],
         "frames": [{
-            "id": f"{sprite['id']}_openart_0",
-            "name": f"CC0 {source_name}",
+            "id": f"{sprite['id']}_listed_openart_0",
+            "name": f"OpenGameArt {source_name}",
             "pixels": pixels,
         }],
     }
@@ -227,25 +251,25 @@ def sprite_payload(sprite: dict, img: Image.Image, source_name: str) -> dict:
 def classify(sprite: dict) -> tuple[str, str]:
     text = f"{sprite.get('id', '')} {sprite.get('name', '')}".lower()
     if any(w in text for w in ["lady", "beet", "bug", "mant", "moth", "bee", "fly", "gnat"]):
-        if "lady" in text or "beet" in text:
-            return "bug", "beetle"
         if "mant" in text:
             return "bug", "mantis"
         if "moth" in text:
             return "bug", "moth"
         if "bee" in text:
             return "bug", "bee"
-        return "bug", "lady"
-    if any(w in text for w in ["elephant", "rhino", "lion", "bird", "slime"]):
+        return "bug", "beetle"
+    if any(w in text for w in ["elephant", "rhino", "lion", "bird", "slime", "monkey"]):
         return "bug", "animal"
-    if any(w in text for w in ["tree", "house", "roof", "building"]):
+    if any(w in text for w in ["house", "roof", "building"]):
         return "object", "house"
-    if any(w in text for w in ["chest"]):
+    if "chest" in text:
         return "object", "chest"
-    if any(w in text for w in ["box", "match", "crate"]):
-        return "object", "box"
-    if any(w in text for w in ["sign", "jeep", "stack"]):
+    if any(w in text for w in ["box", "match", "crate", "stack"]):
+        return "object", "matchbox"
+    if any(w in text for w in ["sign"]):
         return "object", "sign"
+    if "jeep" in text:
+        return "object", "jeep"
     if "poacher" in text:
         return "character", "poacher"
     if "ranger" in text:
@@ -256,7 +280,7 @@ def classify(sprite: dict) -> tuple[str, str]:
         return "character", "judge"
     if "robot" in text:
         return "character", "robot"
-    if any(w in text for w in ["npc", "villager", "tulip"]):
+    if any(w in text for w in ["npc", "villager", "tulip", "barkeep", "captain"]):
         return "character", "npc"
     return "character", "hero"
 
@@ -264,15 +288,10 @@ def classify(sprite: dict) -> tuple[str, str]:
 def open_art_sprite(sprite: dict, index: int) -> dict:
     category, kind = classify(sprite)
     if category == "bug":
-        sheet = BUG_SHEETS[kind]
-        img = crop_bug(sheet)
-        return sprite_payload(sprite, img, f"Ambient Insects / Puny {kind}")
+        return sprite_payload(sprite, bug_image(kind), f"Ambient Insects {kind}")
     if category == "object":
-        img = crop_object(kind)
-        return sprite_payload(sprite, img, f"Puny object {kind}")
-    sheet = CHARACTER_SHEETS[kind]
-    img = crop_character(sheet, col=index % 3, row=0)
-    return sprite_payload(sprite, img, f"Puny Characters {kind}")
+        return sprite_payload(sprite, object_image(kind), f"listed tileset object {kind}")
+    return sprite_payload(sprite, character_image(kind, index), f"16xx16 Pokemon/Zelda character {kind}")
 
 
 def blank(fill: int) -> list[int]:
@@ -298,9 +317,9 @@ def enrich_scene(scene: dict, project_name: str) -> None:
         scene_rect(p, 3, 3, 26, 20, 13)
         scene_rect(p, 5, 5, 22, 16, 3)
         scene_rect(p, 8, 8, 16, 10, 7)
-        scene_rect(p, 11, 10, 10, 6, 11)
+        scene_rect(p, 10, 9, 12, 8, 11)
         scene_rect(p, 1, 23, 30, 3, 6)
-        scatter(p, [(5, 4), (26, 4), (5, 21), (26, 21)], 14)
+        scatter(p, [(4, 4), (27, 4), (4, 21), (27, 21)], 14)
     elif any(w in text for w in ["dungeon", "cave", "hall"]):
         p = blank(12)
         scene_rect(p, 0, 0, COLS, 2, 11)
@@ -343,34 +362,14 @@ def enrich_scene(scene: dict, project_name: str) -> None:
 
 def source_assets() -> list[dict]:
     return [
-        {
-            "id": "cc0_puny_characters",
-            "name": "Puny Characters by Shade",
-            "type": "sprite",
-            "path": "https://opengameart.org/content/puny-characters",
-            "notes": "CC0; embedded into template sprites by scripts/import_open_art_assets.py",
-        },
-        {
-            "id": "cc0_puny_world",
-            "name": "16x16 Puny World Tileset by Shade",
-            "type": "background",
-            "path": "https://opengameart.org/content/16x16-puny-world-tileset",
-            "notes": "CC0; used as visual source for template scenes and objects",
-        },
-        {
-            "id": "cc0_puny_dungeon",
-            "name": "16x16 Puny Dungeon Tileset by Shade",
-            "type": "background",
-            "path": "https://opengameart.org/content/16x16-puny-dungeon-tileset",
-            "notes": "CC0; used as visual source for dungeon scenes and objects",
-        },
-        {
-            "id": "cc0_ambient_insects",
-            "name": "Ambient Pixel Art Insects by madameberry",
-            "type": "sprite",
-            "path": "https://opengameart.org/content/ambient-pixel-art-insects",
-            "notes": "CC0; embedded into Pocket Bugs creature sprites",
-        },
+        {"id": "oga_gassasin_pokemonzelda", "name": "16xx16 Tileset (Pokemon/Zelda style:D) by Damian Gasinski aka Gassasin", "type": "sprite", "path": "https://opengameart.org/content/16xx16-tileset-pokemonzelda-styled", "notes": "CC-BY 3.0; character/object source for bundled templates"},
+        {"id": "oga_battle_165", "name": "A Battle Theme (165 BPM) by Wanwaka", "type": "music", "path": "https://opengameart.org/content/a-battle-theme-165-bpm", "notes": "CC-BY 4.0; battle music source metadata"},
+        {"id": "oga_tuxemon_tileset", "name": "Tuxemon tileset by Buch", "type": "background", "path": "https://opengameart.org/content/tuxemon-tileset", "notes": "CC-BY-SA 3.0; tile/object source for bundled templates"},
+        {"id": "oga_retro_tileset", "name": "Retro Tileset by Paul Barden / Damian Gasinski aka Gassasin", "type": "background", "path": "https://opengameart.org/content/retro-tileset", "notes": "CC-BY 3.0; map/object source for bundled templates"},
+        {"id": "oga_rpgui_hud", "name": "RPGui HUD - Asset Pack by Narehop", "type": "other", "path": "https://opengameart.org/content/rpgui-hud-asset-pack", "notes": "CC-BY 4.0; UI and battle box source"},
+        {"id": "oga_tiny16", "name": "Tiny16 Tileset by Fuwaneko Games", "type": "background", "path": "https://opengameart.org/content/tiny16-tileset", "notes": "CC-BY 3.0; town/sign source for bundled templates"},
+        {"id": "cc0_ambient_insects", "name": "Ambient Pixel Art Insects by madameberry", "type": "sprite", "path": "https://opengameart.org/content/ambient-pixel-art-insects", "notes": "CC0; creature source for Pocket Bugs"},
+        {"id": "skipped_opmon_center", "name": "OPMon Center by Navet56", "type": "other", "path": "https://opengameart.org/content/opmon-center", "notes": "Not embedded: GPL 3.0 and public page comments flag Pokemon/trademark licensing concerns"},
     ]
 
 
@@ -382,13 +381,13 @@ def upgrade(path: Path) -> None:
         sprite.update(open_art_sprite(sprite, i))
     for scene in data.get("scenes", []):
         enrich_scene(scene, data.get("name", ""))
-    existing = {asset.get("id") for asset in data.get("assets", [])}
-    data.setdefault("assets", [])
+    data["assets"] = [a for a in data.get("assets", []) if not str(a.get("id", "")).startswith(("cc0_puny", "oga_", "skipped_opmon_center"))]
+    existing = {asset.get("id") for asset in data["assets"]}
     for asset in source_assets():
         if asset["id"] not in existing:
             data["assets"].append(asset)
     path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
-    print(f"Imported CC0 art into {path.relative_to(ROOT)}")
+    print(f"Imported listed OGA art into {path.relative_to(ROOT)}")
 
 
 def main() -> None:
