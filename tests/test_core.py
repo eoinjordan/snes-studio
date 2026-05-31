@@ -64,16 +64,17 @@ def test_frame_to_tiles_4bpp_layout():
     assert tile[0] == 0x80 and tile[1] == 0x80
 
 
-def test_16x16_sprite_emits_four_tiles_and_assets_roundtrip(tmp_path):
+def test_sprite_assets_emit_expected_tiles_and_assets_roundtrip(tmp_path):
     result = assets.export_assets(PROJECT, tmp_path)
     header = (tmp_path / 'snesstudio_assets.h').read_text()
     source = (tmp_path / 'snesstudio_assets.c').read_text()
-    assert 'GFX_ROBOT_TILES_PER_FRAME 4' in header   # 16x16 -> 4 tiles
+    robot = next(s for s in load_project(PROJECT).sprites if s.id == 'robot')
+    expected_tiles = ((robot.width + 7) // 8) * ((robot.height + 7) // 8)
+    assert f'GFX_ROBOT_TILES_PER_FRAME {expected_tiles}' in header
     assert 'gfx_robot_tiles' in source and 'pal_robot' in source
-    sp = assets.sprite_assets(next(s for s in [{'id': 'robot', 'name': 'Robot', 'width': 16, 'height': 16,
-        'palette': ['#000000', '#334155', '#67e8f9', '#e2e8f0'], 'frames': []}]))
-    assert sp['tiles_per_frame'] == 4
-    assert len(sp['frames'][0]['tiles']) == 4 * assets.BYTES_PER_TILE
+    sp = assets.sprite_assets(robot)
+    assert sp['tiles_per_frame'] == expected_tiles
+    assert len(sp['frames'][0]['tiles']) == expected_tiles * assets.BYTES_PER_TILE
 
 def test_example_sprites_convert_to_visible_tiles():
     # The kid and robot example sprites carry real pixel art, so their converted

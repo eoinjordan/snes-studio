@@ -20,11 +20,17 @@
 
 {% set ns = namespace(player=None) %}
 {% if project.scenes %}{% for a in project.scenes[0].actors %}{% if a.sprite and ns.player is none %}{% set ns.player = a %}{% endif %}{% endfor %}{% endif %}
-{% set player_sprite = (ns.player.sprite | c_ident) if ns.player else (project.sprites[0].id | c_ident if project.sprites else 'kid') %}
+{% set player_sprite_id = ns.player.sprite if ns.player else (project.sprites[0].id if project.sprites else 'kid') %}
+{% set player_sprite = player_sprite_id | c_ident %}
+{% set sp = namespace(w=16, h=16) %}
+{% for sprite in project.sprites %}{% if sprite.id == player_sprite_id %}{% set sp.w = sprite.width %}{% set sp.h = sprite.height %}{% endif %}{% endfor %}
 
 #define BG_WALL_CHAR 3
 #define WALK_SPEED   1
-#define SPR_SIZE     16
+#define SPR_W        {{ sp.w }}
+#define SPR_H        {{ sp.h }}
+#define SPR_OAM_SIZE {{ 'OBJ_SIZE32_L64' if sp.w >= 32 or sp.h >= 32 else 'OBJ_SIZE16_L32' }}
+#define SPR_OAM_EX   {{ 'OBJ_SMALL' if sp.w >= 32 or sp.h >= 32 else 'OBJ_SMALL' }}
 #define TEXTBOX_X    1
 #define TEXTBOX_Y    22
 #define TEXTBOX_W    30
@@ -59,8 +65,8 @@ static int tile_solid(short px, short py) {
     return current_col[ty * MAP_W + tx];
 }
 static int blocked(short px, short py) {
-    return tile_solid(px, py) || tile_solid(px + SPR_SIZE - 1, py)
-        || tile_solid(px, py + SPR_SIZE - 1) || tile_solid(px + SPR_SIZE - 1, py + SPR_SIZE - 1);
+    return tile_solid(px, py) || tile_solid(px + SPR_W - 1, py)
+        || tile_solid(px, py + SPR_H - 1) || tile_solid(px + SPR_W - 1, py + SPR_H - 1);
 }
 
 /* ---- runtime API ---- */
@@ -80,9 +86,9 @@ void snesstudio_init(const char *title) {
                   BG_TILESET_TILES * 32, 16 * 2, BG_16COLORS, 0x4000);
     bgInitMapSet(1, (unsigned char *)current_map, MAP_W * MAP_H * 2, SC_32x32, 0x1000);
     oamInitGfxSet((unsigned char *)&gfx_{{ player_sprite }}_tiles, GFX_{{ player_sprite | upper }}_TILES * 32,
-                  (unsigned char *)&pal_{{ player_sprite }}, 16 * 2, 0, 0x6000, OBJ_SIZE16_L32);
+                  (unsigned char *)&pal_{{ player_sprite }}, 16 * 2, 0, 0x6000, SPR_OAM_SIZE);
     oamSet(0, player_x, player_y, 3, 0, 0, 0, 0);
-    oamSetEx(0, OBJ_SMALL, OBJ_SHOW);
+    oamSetEx(0, SPR_OAM_EX, OBJ_SHOW);
     oamSetVisible(0, OBJ_SHOW);   /* required for the sprite to actually draw */
     setMode(BG_MODE1, 0);
     bgSetEnable(0);
@@ -138,11 +144,11 @@ static int rect_hit(short ax, short ay, short aw, short ah, short bx, short by, 
 }
 
 int snesstudio_player_in_zone(int x, int y, int w, int h) {
-    return rect_hit(player_x, player_y, SPR_SIZE, SPR_SIZE, x, y, w, h);
+    return rect_hit(player_x, player_y, SPR_W, SPR_H, x, y, w, h);
 }
 
 int snesstudio_player_near(int x, int y, int w, int h) {
-    return rect_hit(player_x - 8, player_y - 8, SPR_SIZE + 16, SPR_SIZE + 16, x, y, w, h);
+    return rect_hit(player_x - 8, player_y - 8, SPR_W + 16, SPR_H + 16, x, y, w, h);
 }
 
 static void textbox_clear(void) {
@@ -245,7 +251,7 @@ void snesstudio_update(void) {
     prev_pad = pad;
 
     oamSet(0, player_x, player_y, 3, 0, 0, 0, 0);
-    oamSetEx(0, OBJ_SMALL, OBJ_SHOW);
+    oamSetEx(0, SPR_OAM_EX, OBJ_SHOW);
     oamSetVisible(0, OBJ_SHOW);
     WaitForVBlank();
 }
