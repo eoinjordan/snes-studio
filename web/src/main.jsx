@@ -483,6 +483,26 @@ function ScenePaintThumb({ paint, palette, scale = 7 }) {
   return <canvas ref={ref} style={{ width: SCENE_COLS * scale, height: SCENE_ROWS * scale, imageRendering: 'pixelated', borderRadius: 8, display: 'block' }} />;
 }
 
+// Bring-your-own-key AI settings for the Coding Helper.
+function AiSettingsModal({ onClose, onSaved }) {
+  const [key, setKey] = useState(() => { try { return localStorage.getItem('snesstudio_llm_key') || ''; } catch { return ''; } });
+  const [model, setModel] = useState(() => { try { return localStorage.getItem('snesstudio_llm_model') || 'claude-3-5-haiku-latest'; } catch { return 'claude-3-5-haiku-latest'; } });
+  const save = () => {
+    try {
+      if (key.trim()) localStorage.setItem('snesstudio_llm_key', key.trim()); else localStorage.removeItem('snesstudio_llm_key');
+      localStorage.setItem('snesstudio_llm_model', model.trim() || 'claude-3-5-haiku-latest');
+    } catch {}
+    onSaved(!!key.trim()); onClose();
+  };
+  return <div className="modal-backdrop"><div className="modal">
+    <div className="modal-head"><div><h2><Wand2 size={16}/> AI Coding Helper settings</h2><p>Bring your own Anthropic API key for real AI help. The helper returns a patch you review before it’s applied.</p></div><button type="button" className="icon" onClick={onClose}><X size={16}/></button></div>
+    <div className="review-note"><strong>Your key stays in this browser.</strong><p>It’s saved in localStorage and sent only to api.anthropic.com from your machine. Leave blank to use the offline deterministic helper. Get a key at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer">console.anthropic.com</a>.</p></div>
+    <label className="field">Anthropic API key<input type="password" placeholder="sk-ant-…" value={key} onChange={e => setKey(e.target.value)} autoFocus/></label>
+    <label className="field">Model<input value={model} onChange={e => setModel(e.target.value)} placeholder="claude-3-5-haiku-latest"/></label>
+    <div className="modal-actions"><Btn type="button" className="secondary" onClick={onClose}>Cancel</Btn><Btn type="button" className="primary" onClick={save}><ShieldCheck size={16}/>Save</Btn></div>
+  </div></div>;
+}
+
 // "New from template" gallery — complete starter games to begin from.
 function TemplateGallery({ baseUrl, onClose, onUse }) {
   const [items, setItems] = useState(null);
@@ -560,6 +580,9 @@ function App(){
   const [importing,setImporting]=useState(false);
   const [importingScene,setImportingScene]=useState(false);
   const [gallery,setGallery]=useState(false);
+  const [aiSettings,setAiSettings]=useState(false);
+  const [aiOn,setAiOn]=useState(false);
+  useEffect(()=>{ try{ setAiOn(!!localStorage.getItem('snesstudio_llm_key')); }catch{} },[]);
   const fileInput = useRef(null);
   const romInput = useRef(null);
   const releaseRepo = (import.meta.env.VITE_GITHUB_REPO || 'eoinjordan/snes-studio').trim();
@@ -655,7 +678,7 @@ function App(){
     } catch(_) {}
   }
 
-  async function propose(){ const p=await client.current.propose(prompt); setPatch(p); setLog('Patch proposed. Review before applying.'); }
+  async function propose(){ try{ setLog(aiOn?'Asking the AI helper…':'Building a safe patch…'); const p=await client.current.propose(prompt); setPatch(p); setLog('Patch proposed. Review before applying.'); }catch(e){ setLog(`Helper error: ${e.message}`); } }
   async function apply(){ const proj = await client.current.applyPatch(patch); setPatch(null); const p = proj.project || client.current.project; setProject(p); setInventory(client.current.inventory(p)); setLog('Patch applied after human review.'); }
   async function exportC(){ try{ const r=await client.current.exportC(); setLog(`Generated ${r.files?.length||0} files.`);}catch(e){setLog(e.message);} }
   async function build(){ try{ const r=await client.current.makeRom(); setLog(`ROM artifact: ${r.rom} (${r.bytes} bytes).`);}catch(e){setLog(e.message);} }
@@ -723,7 +746,7 @@ function App(){
           ? <><SceneHierarchy scene={scene} selectedActor={actor?.id} setSelectedActor={setActorId} selectedZone={selectedZone} setSelectedZone={setSelectedZone}/>{selectedZone ? <SceneTools scene={scene} scenes={project?.scenes||[]} selectedZone={selectedZone} setSelectedZone={setSelectedZone} onUpdateCollision={onUpdateCollision} onDeleteCollision={onDeleteCollision} onUpdateTrigger={onUpdateTrigger} onDeleteTrigger={onDeleteTrigger} onLinkTriggerScene={linkTriggerToScene}/> : <Inspector scene={scene} scenes={project?.scenes||[]} actor={actor} chains={project?.eventChains||[]} onUpdate={onUpdateActor} onDelete={onDeleteActor} onLinkActorScene={linkActorToScene}/>}</>
           : <Inspector scene={scene} scenes={project?.scenes||[]} actor={actor} chains={project?.eventChains||[]} onUpdate={onUpdateActor} onDelete={onDeleteActor} onLinkActorScene={linkActorToScene}/>}
         <section className="card"><div className="section-title"><h2><Download size={18}/> Installers</h2></div><p className="hint">Download desktop installers from the latest release.</p><div className="two"><a className="btn secondary" href={winInstaller}><Download size={16}/>Windows</a><a className="btn secondary" href={macInstaller}><Download size={16}/>macOS</a></div></section>
-        <section className="card"><div className="section-title"><h2><Wand2 size={18}/> Coding Helper</h2></div><textarea value={prompt} onChange={e=>setPrompt(e.target.value)}/><Btn className="primary full" onClick={propose}><Wand2 size={16}/>Propose safe patch</Btn></section>
+        <section className="card"><div className="section-title"><h2><Wand2 size={18}/> Coding Helper</h2><div className="two"><Pill tone={aiOn?'good':'blue'}>{aiOn?'AI on':'offline'}</Pill><button className="icon" title="AI settings (API key)" onClick={()=>setAiSettings(true)}><Settings2 size={16}/></button></div></div><textarea value={prompt} onChange={e=>setPrompt(e.target.value)}/><Btn className="primary full" onClick={propose}><Wand2 size={16}/>{aiOn?'Ask AI for a patch':'Propose safe patch'}</Btn>{!aiOn?<p className="hint">Add an Anthropic API key in settings for real AI help.</p>:null}</section>
         <section className="card"><div className="section-title"><h2><CheckCircle2 size={18}/> Build Checks</h2></div><p className="check"><CheckCircle2 size={14}/>Project schema valid</p><p className="check"><CheckCircle2 size={14}/>Event chains compile to C</p><p className="warn"><AlertTriangle size={14}/>Real SNES build needs PVSnesLib runtime</p></section>
         <section className="card"><h2><Users size={18}/> Human Review</h2><p><MessageSquare size={14}/> Kid or mentor approval required before helper patches apply.</p></section>
       </aside>
@@ -733,6 +756,7 @@ function App(){
     {importing && <SpriteImportModal onClose={()=>setImporting(false)} onImport={importSprite}/>}
     {importingScene && <SceneImportModal sceneName={scene?.name||'scene'} onClose={()=>setImportingScene(false)} onApply={importScene}/>}
     {gallery && <TemplateGallery baseUrl={import.meta.env.BASE_URL} onClose={()=>setGallery(false)} onUse={useTemplate}/>}
+    {aiSettings && <AiSettingsModal onClose={()=>setAiSettings(false)} onSaved={setAiOn}/>}
   </div>;
 }
 
