@@ -1,0 +1,20 @@
+[
+  {
+    "id": "poachermon",
+    "name": "Poachermon",
+    "description": "Comedic savannah safari: rescue wild creatures from a poacher across 5 scenes.",
+    "file": "examples/poachermon.snesproj"
+  },
+  {
+    "id": "dungeon-escape",
+    "name": "Dungeon Escape",
+    "description": "Top-down dungeon crawl. Walk through doors to jump between 3 connected rooms.",
+    "file": "templates/dungeon-escape.snesproj"
+  },
+  {
+    "id": "town-tales",
+    "name": "Town Tales",
+    "description": "A cosy town with an enterable house. Chat to villagers; doors link the scenes.",
+    "file": "templates/town-tales.snesproj"
+  }
+]

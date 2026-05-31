@@ -15,6 +15,20 @@ const EXAMPLES = [
 const slug = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'item';
 const uniqueId = (base, existing) => { const has = new Set(existing); let id = base, n = 2; while (has.has(id)) id = `${base}_${n++}`; return id; };
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+// Outgoing scene-to-scene jumps from a scene (via its triggers/actors/scene_start
+// chains' change_scene steps). Powers the scene-flow chips.
+function sceneJumpTargets(project, sceneId){
+  const scene = project?.scenes?.find(s=>s.id===sceneId); if(!scene) return [];
+  const chains = project.eventChains||[];
+  const refd = new Set();
+  (scene.triggers||[]).forEach(t=>{ if(t.event) refd.add(t.event); });
+  (scene.actors||[]).forEach(a=>{ if(a.events?.interact) refd.add(a.events.interact); });
+  chains.forEach(c=>{ if(c.trigger?.type==='scene_start' && c.trigger?.scene===sceneId) refd.add(c.id); });
+  const targets = new Set();
+  const walk = steps => (steps||[]).forEach(st=>{ if(st.type==='change_scene' && st.scene) targets.add(st.scene); walk(st.then); walk(st.else); });
+  refd.forEach(id=>{ const c = chains.find(x=>x.id===id); if(c) walk(c.steps); });
+  return [...targets];
+}
 const hexToRgb = (hex) => { const s = (hex || '').replace('#', ''); const f = s.length === 3 ? s.split('').map(c => c + c).join('') : s; const n = parseInt(f || '0', 16); return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 }; };
 
 // Renders a sprite frame to a pixel-perfect canvas. Palette index 0 = transparent.
@@ -291,7 +305,7 @@ function SceneCanvas({ scene, sprites, selectedActor, actor, setSelectedActor, t
   </section>;
 }
 
-function SceneTools({ scene, selectedZone, setSelectedZone, onUpdateCollision, onDeleteCollision, onUpdateTrigger, onDeleteTrigger }) {
+function SceneTools({ scene, scenes, selectedZone, setSelectedZone, onUpdateCollision, onDeleteCollision, onUpdateTrigger, onDeleteTrigger, onLinkTriggerScene }) {
   const selected = !selectedZone ? null : (selectedZone.kind === 'collision'
     ? (scene?.collision || []).find(c => c.id === selectedZone.id)
     : (scene?.triggers || []).find(t => t.id === selectedZone.id));
@@ -314,7 +328,12 @@ function SceneTools({ scene, selectedZone, setSelectedZone, onUpdateCollision, o
       <label>Y<input type="number" value={form.y ?? 0} onChange={e=>setForm(f=>({...f,y:e.target.value}))} onBlur={apply}/></label>
       <label>W<input type="number" value={form.w ?? 1} onChange={e=>setForm(f=>({...f,w:e.target.value}))} onBlur={apply}/></label>
       <label>H<input type="number" value={form.h ?? 1} onChange={e=>setForm(f=>({...f,h:e.target.value}))} onBlur={apply}/></label>
-      {selectedZone.kind==='trigger' ? <><label>Name<input value={form.name ?? ''} onChange={e=>setForm(f=>({...f,name:e.target.value}))} onBlur={apply}/></label><label>Event chain id<input value={form.event ?? ''} onChange={e=>setForm(f=>({...f,event:e.target.value}))} onBlur={apply}/></label></> : null}
+      {selectedZone.kind==='trigger' ? <><label>Name<input value={form.name ?? ''} onChange={e=>setForm(f=>({...f,name:e.target.value}))} onBlur={apply}/></label>
+        <label className="jump-field"><GitBranch size={13}/> On enter → go to scene<select value="" onChange={e=>{ if(e.target.value) onLinkTriggerScene(selected.id, e.target.value); }}>
+          <option value="">{selected.event ? `linked: ${selected.event}` : 'pick a scene…'}</option>
+          {(scenes||[]).filter(s=>s.id!==scene.id).map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+        </select></label>
+        <label>Event chain id<input value={form.event ?? ''} onChange={e=>setForm(f=>({...f,event:e.target.value}))} onBlur={apply}/></label></> : null}
       <Btn className="secondary full" onClick={()=> selectedZone.kind==='collision' ? onDeleteCollision(selected.id) : onDeleteTrigger(selected.id)}><Trash2 size={16}/>Delete zone</Btn>
     </div> : <p className="hint">Select a collision or trigger to edit it.</p>}
   </section>;
@@ -335,7 +354,7 @@ function SceneHierarchy({ scene, selectedActor, setSelectedActor, selectedZone, 
   </section>;
 }
 
-function Inspector({ scene, actor, chains, onUpdate, onDelete }) {
+function Inspector({ scene, scenes, actor, chains, onUpdate, onDelete, onLinkActorScene }) {
   const [form, setForm] = useState({});
   useEffect(() => { setForm({ name: actor?.name ?? '', x: actor?.x ?? 0, y: actor?.y ?? 0, interact: actor?.events?.interact ?? '' }); }, [actor?.id]);
   if (!actor) return <section className="card"><div className="section-title"><h2><Settings2 size={18}/> Inspector</h2></div><p>Select or add an actor to edit its properties.</p></section>;
@@ -349,6 +368,9 @@ function Inspector({ scene, actor, chains, onUpdate, onDelete }) {
     </div>
     <label>Interact event<select value={form.interact} onChange={e=>{ setForm(f=>({...f,interact:e.target.value})); commitInteract(e.target.value); }}>
       <option value="">none</option>{(chains||[]).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+    </select></label>
+    <label className="jump-field"><GitBranch size={13}/> On interact → go to scene<select value="" onChange={e=>{ if(e.target.value) onLinkActorScene(actor.id, e.target.value); }}>
+      <option value="">pick a scene…</option>{(scenes||[]).filter(s=>s.id!==scene?.id).map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
     </select></label>
     <Btn className="secondary full" onClick={()=>onDelete(scene.id, actor.id)}><Trash2 size={16}/>Delete actor</Btn>
   </section>;
@@ -461,6 +483,32 @@ function ScenePaintThumb({ paint, palette, scale = 7 }) {
   return <canvas ref={ref} style={{ width: SCENE_COLS * scale, height: SCENE_ROWS * scale, imageRendering: 'pixelated', borderRadius: 8, display: 'block' }} />;
 }
 
+// "New from template" gallery — complete starter games to begin from.
+function TemplateGallery({ baseUrl, onClose, onUse }) {
+  const [items, setItems] = useState(null);
+  useEffect(() => { (async () => {
+    try {
+      const idx = await fetch(`${baseUrl}templates/index.json`).then(r => r.json());
+      const withProj = await Promise.all(idx.map(async e => {
+        try { return { ...e, project: await fetch(`${baseUrl}${e.file}`).then(r => r.json()) }; }
+        catch { return { ...e, project: null }; }
+      }));
+      setItems(withProj);
+    } catch { setItems([]); }
+  })(); }, [baseUrl]);
+  const thumbScene = (p) => p?.scenes?.find(s => s.paint_palette && s.paint?.some(v => v));
+  return <div className="modal-backdrop"><div className="modal import-modal">
+    <div className="modal-head"><div><h2><Blocks size={18}/> Start from a template</h2><p>Complete, ready-to-play games. Pick one to load it into the editor.</p></div><button type="button" className="icon" onClick={onClose}><X size={16}/></button></div>
+    {!items ? <p className="hint">Loading templates…</p> : <div className="gallery">
+      {items.map(t => { const ps = thumbScene(t.project); return <div className="gallery-card" key={t.id}>
+        <div className="gallery-thumb">{ps ? <ScenePaintThumb paint={ps.paint} palette={ps.paint_palette} scale={6}/> : <div className="gallery-noimg"><Gamepad2 size={28}/></div>}</div>
+        <div className="gallery-body"><strong>{t.name}</strong><p>{t.description}</p><small>{t.project ? `${t.project.scenes?.length||0} scenes · ${t.project.sprites?.length||0} sprites` : 'unavailable'}</small></div>
+        <Btn className="primary full" disabled={!t.project} onClick={() => onUse(t.project)}><Play size={16}/>Use this template</Btn>
+      </div>; })}
+    </div>}
+  </div></div>;
+}
+
 // Build a scene background from an image or a preset, with optional wall collisions.
 function SceneImportModal({ sceneName, onClose, onApply }) {
   const [img, setImg] = useState(null);
@@ -511,6 +559,7 @@ function App(){
   const [rom,setRom]=useState(null); // {url, name}
   const [importing,setImporting]=useState(false);
   const [importingScene,setImportingScene]=useState(false);
+  const [gallery,setGallery]=useState(false);
   const fileInput = useRef(null);
   const romInput = useRef(null);
   const releaseRepo = (import.meta.env.VITE_GITHUB_REPO || 'eoinjordan/snes-studio').trim();
@@ -554,6 +603,30 @@ function App(){
   const onUpdateTrigger = (id, fields) => commit(client.current.updateTrigger(scene.id, id, fields), `Updated trigger ${id}.`);
   const onDeleteTrigger = (id) => { commit(client.current.deleteTrigger(scene.id, id), `Deleted trigger ${id}.`); if(selectedZone?.id===id) setSelectedZone(null); };
   const onPaintScene = (paint) => commit(client.current.updateScene(scene.id, { paint }), `Updated scene paint.`);
+  // GB Studio-style one-click scene jump: build a change_scene chain and link it.
+  async function linkTriggerToScene(triggerId, targetSceneId){
+    if(!scene || !targetSceneId) return;
+    const target = project.scenes.find(s=>s.id===targetSceneId);
+    const chainId = uniqueId(`goto_${slug(targetSceneId)}`, (project.eventChains||[]).map(c=>c.id));
+    try {
+      await client.current.addChain(chainId, `Go to ${target?.name||targetSceneId}`, { type:'zone_enter', zone: triggerId });
+      await client.current.addStep(chainId, { id:`${chainId}_go`, type:'change_scene', scene: targetSceneId });
+      await commit(client.current.updateTrigger(scene.id, triggerId, { event: chainId }), `Trigger jumps to ${target?.name||targetSceneId}.`);
+      setChainId(chainId);
+    } catch(e){ setLog(`Could not link scene jump: ${e.message}`); }
+  }
+  async function linkActorToScene(actorId, targetSceneId){
+    if(!scene || !targetSceneId) return;
+    const a = scene.actors.find(x=>x.id===actorId);
+    const target = project.scenes.find(s=>s.id===targetSceneId);
+    const chainId = uniqueId(`goto_${slug(targetSceneId)}`, (project.eventChains||[]).map(c=>c.id));
+    try {
+      await client.current.addChain(chainId, `Go to ${target?.name||targetSceneId}`, { type:'actor_interact', actor: actorId });
+      await client.current.addStep(chainId, { id:`${chainId}_go`, type:'change_scene', scene: targetSceneId });
+      await commit(client.current.updateActor(scene.id, actorId, { events: { ...(a?.events||{}), interact: chainId } }), `${a?.name||actorId} jumps to ${target?.name||targetSceneId}.`);
+      setChainId(chainId);
+    } catch(e){ setLog(`Could not link scene jump: ${e.message}`); }
+  }
   const onAddStep = (chain, block)=>{ if(!chain) return; const { then, else:_e, ...rest } = block.defaults||{}; const step={ id: uniqueId(slug(block.type), (chain.steps||[]).map(s=>s.id)), type: block.type, ...rest }; if(block.type==='if_flag'){ step.then=[]; step.else=[]; } commit(client.current.addStep(chain.id, step), `Added ${block.label} step.`); };
   const onDeleteStep = (cid, sid)=> commit(client.current.deleteStep(cid, sid), 'Removed step.');
 
@@ -605,6 +678,11 @@ function App(){
   function pickRom(){ romInput.current?.click(); }
   function playBuiltIn(){ setRom(prev=>{ if(prev?.url?.startsWith('blob:')) URL.revokeObjectURL(prev.url); const cacheBust = Date.now(); return { url: `${import.meta.env.BASE_URL}roms/poachermon.sfc?cacheBust=${cacheBust}`, name: 'Poachermon (built-in)' }; }); setView('preview'); setLog('Loaded the built-in Poachermon ROM.'); }
   function onRomFile(e){ const file=e.target.files?.[0]; if(!file) return; setRom(prev=>{ if(prev?.url) URL.revokeObjectURL(prev.url); return { url: URL.createObjectURL(file), name: file.name }; }); setView('preview'); setLog(`Loaded ROM ${file.name}.`); e.target.value=''; }
+  async function useTemplate(data){
+    setGallery(false);
+    try{ const snap = await client.current.importProject(data); applySnap(snap); setSceneId(snap.project.scenes?.[0]?.id); setChainId(snap.project.eventChains?.[0]?.id); setSpriteId(snap.project.sprites?.[0]?.id); setActorId(null); setSelectedZone(null); setView('scene'); setLog(`Loaded template: ${snap.project.name}.`); }
+    catch(err){ setLog(`Could not load template: ${err.message}`); }
+  }
   async function onFile(e){ const file=e.target.files?.[0]; if(!file) return; try{ const data=JSON.parse(await file.text()); const snap = await client.current.importProject(data); applySnap(snap); setSceneId(snap.project.scenes?.[0]?.id); setChainId(snap.project.eventChains?.[0]?.id); setSpriteId(snap.project.sprites?.[0]?.id); setActorId(null); setSelectedZone(null); setLog(`Loaded ${file.name}. Build ROM now compiles this project.`);}catch(err){ setLog(`Could not load project: ${err.message}`);} e.target.value=''; }
   async function loadExample(slug, name){
     try {
@@ -622,7 +700,7 @@ function App(){
     }
   }
 
-  return <div className="page"><div className="shell"><header className="topbar"><div className="brand"><div className="logo"><Gamepad2/></div><div><h1>SNES Studio</h1><p>Scene editor Â· sprite painter Â· event chains Â· human-reviewed coding helper</p></div></div><div className="actions"><Btn className="secondary" onClick={openProject}><FolderOpen size={16}/>Open</Btn><Btn className="secondary" onClick={()=>client.current.downloadProject()}><Save size={16}/>Save</Btn><Btn className="secondary" onClick={exportC}><Code2 size={16}/>Export C</Btn><Btn className="secondary" onClick={pickRom}><MonitorPlay size={16}/>Preview ROM</Btn><Btn className="primary" onClick={build}><Play size={16}/>Build ROM</Btn></div></header>
+  return <div className="page"><div className="shell"><header className="topbar"><div className="brand"><div className="logo"><Gamepad2/></div><div><h1>SNES Studio</h1><p>Scene editor Â· sprite painter Â· event chains Â· human-reviewed coding helper</p></div></div><div className="actions"><Btn className="secondary" onClick={()=>setGallery(true)}><Blocks size={16}/>Templates</Btn><Btn className="secondary" onClick={openProject}><FolderOpen size={16}/>Open</Btn><Btn className="secondary" onClick={()=>client.current.downloadProject()}><Save size={16}/>Save</Btn><Btn className="secondary" onClick={exportC}><Code2 size={16}/>Export C</Btn><Btn className="secondary" onClick={pickRom}><MonitorPlay size={16}/>Preview ROM</Btn><Btn className="primary" onClick={build}><Play size={16}/>Build ROM</Btn></div></header>
     <input ref={fileInput} type="file" accept=".snesproj,.json,application/json" style={{display:'none'}} onChange={onFile}/>
     <input ref={romInput} type="file" accept=".sfc,.smc" style={{display:'none'}} onChange={onRomFile}/>
     <div className="modebar">{mode==='backend'?<Wifi size={16}/>:<WifiOff size={16}/>}<strong>{mode==='backend'?'Backend mode':'Online demo mode'}</strong><span>{log}</span><Btn className="secondary compact" onClick={()=>client.current.downloadProject()}><Download size={16}/>Download project</Btn></div>
@@ -630,7 +708,7 @@ function App(){
       <aside className="left">
         <section className="card"><div className="section-title"><h2>Project</h2><Pill tone={mode==='backend'?'good':'blue'}>{mode}</Pill></div><div className="project-card"><strong>{project?.name||'Loading'}</strong><span>{inventory.scene_count||0} scenes Â· {inventory.actor_count||0} actors Â· {inventory.event_chain_count||0} chains</span></div></section>
         <section className="card"><div className="section-title"><h2>Example Games</h2><Pill tone="warn">load</Pill></div>{EXAMPLES.map(ex=><button className={`row example-row ${project?.name===ex.name?'active':''}`} key={ex.slug} onClick={()=>loadExample(ex.slug, ex.name)}><span>{ex.name}</span><small>{ex.desc}</small><ChevronRight size={16}/></button>)}</section>
-        <section className="card"><div className="section-title"><h2>Scenes</h2><div className="two"><button className="icon" title="Build background (preset / image)" disabled={!scene} onClick={()=>setImportingScene(true)}><Map size={16}/></button><button className="icon" title="Add scene" onClick={openSceneForm}><Plus size={16}/></button></div></div>{(project?.scenes||[]).map(s=><button className={`row ${s.id===scene?.id?'active':''}`} key={s.id} onClick={()=>{setSceneId(s.id); setActorId(null);}}><span>{s.name}</span><small>{s.actors?.length||0} actors Â· {s.triggers?.length||0} triggers</small><ChevronRight size={16}/></button>)}{scene ? <Btn className="secondary full" onClick={()=>setImportingScene(true)}><Map size={16}/>Build background</Btn> : null}</section>
+        <section className="card"><div className="section-title"><h2>Scenes</h2><div className="two"><button className="icon" title="Build background (preset / image)" disabled={!scene} onClick={()=>setImportingScene(true)}><Map size={16}/></button><button className="icon" title="Add scene" onClick={openSceneForm}><Plus size={16}/></button></div></div>{(project?.scenes||[]).map(s=>{ const jt=sceneJumpTargets(project,s.id); return <button className={`row ${s.id===scene?.id?'active':''}`} key={s.id} onClick={()=>{setSceneId(s.id); setActorId(null);}}><span>{s.name}</span><small>{s.actors?.length||0} actors · {s.triggers?.length||0} triggers</small>{jt.length?<div className="jumps">{jt.map(tid=><span key={tid} className="jump-chip"><GitBranch size={10}/>{project.scenes.find(x=>x.id===tid)?.name||tid}</span>)}</div>:null}<ChevronRight size={16}/></button>; })}{scene ? <Btn className="secondary full" onClick={()=>setImportingScene(true)}><Map size={16}/>Build background</Btn> : null}</section>
         <section className="card"><div className="section-title"><h2><ImageIcon size={16}/> Assets</h2><div className="two"><button className="icon" title="Import sprite from image (AI art)" onClick={()=>setImporting(true)}><Wand2 size={16}/></button><button className="icon" title="Add sprite" onClick={openSpriteForm}><Plus size={16}/></button></div></div>{(project?.sprites||[]).map(s=><button className={`asset asset-spr ${s.id===sprite?.id?'active':''}`} key={s.id} onClick={()=>{setSpriteId(s.id); setView('sprite');}}><SpriteThumb sprite={s} scale={2}/><span>{s.name}<small>Sprite · {s.width}x{s.height} · {(s.frames||[]).length} frames</small></span></button>)}<Btn className="secondary full" onClick={()=>setImporting(true)}><Wand2 size={16}/>Import from image</Btn></section>
       </aside>
       <main className="main">
@@ -642,8 +720,8 @@ function App(){
       </main>
       <aside className="right">
         {view==='scene'
-          ? <><SceneHierarchy scene={scene} selectedActor={actor?.id} setSelectedActor={setActorId} selectedZone={selectedZone} setSelectedZone={setSelectedZone}/>{selectedZone ? <SceneTools scene={scene} selectedZone={selectedZone} setSelectedZone={setSelectedZone} onUpdateCollision={onUpdateCollision} onDeleteCollision={onDeleteCollision} onUpdateTrigger={onUpdateTrigger} onDeleteTrigger={onDeleteTrigger}/> : <Inspector scene={scene} actor={actor} chains={project?.eventChains||[]} onUpdate={onUpdateActor} onDelete={onDeleteActor}/>}</>
-          : <Inspector scene={scene} actor={actor} chains={project?.eventChains||[]} onUpdate={onUpdateActor} onDelete={onDeleteActor}/>}
+          ? <><SceneHierarchy scene={scene} selectedActor={actor?.id} setSelectedActor={setActorId} selectedZone={selectedZone} setSelectedZone={setSelectedZone}/>{selectedZone ? <SceneTools scene={scene} scenes={project?.scenes||[]} selectedZone={selectedZone} setSelectedZone={setSelectedZone} onUpdateCollision={onUpdateCollision} onDeleteCollision={onDeleteCollision} onUpdateTrigger={onUpdateTrigger} onDeleteTrigger={onDeleteTrigger} onLinkTriggerScene={linkTriggerToScene}/> : <Inspector scene={scene} scenes={project?.scenes||[]} actor={actor} chains={project?.eventChains||[]} onUpdate={onUpdateActor} onDelete={onDeleteActor} onLinkActorScene={linkActorToScene}/>}</>
+          : <Inspector scene={scene} scenes={project?.scenes||[]} actor={actor} chains={project?.eventChains||[]} onUpdate={onUpdateActor} onDelete={onDeleteActor} onLinkActorScene={linkActorToScene}/>}
         <section className="card"><div className="section-title"><h2><Download size={18}/> Installers</h2></div><p className="hint">Download desktop installers from the latest release.</p><div className="two"><a className="btn secondary" href={winInstaller}><Download size={16}/>Windows</a><a className="btn secondary" href={macInstaller}><Download size={16}/>macOS</a></div></section>
         <section className="card"><div className="section-title"><h2><Wand2 size={18}/> Coding Helper</h2></div><textarea value={prompt} onChange={e=>setPrompt(e.target.value)}/><Btn className="primary full" onClick={propose}><Wand2 size={16}/>Propose safe patch</Btn></section>
         <section className="card"><div className="section-title"><h2><CheckCircle2 size={18}/> Build Checks</h2></div><p className="check"><CheckCircle2 size={14}/>Project schema valid</p><p className="check"><CheckCircle2 size={14}/>Event chains compile to C</p><p className="warn"><AlertTriangle size={14}/>Real SNES build needs PVSnesLib runtime</p></section>
@@ -654,6 +732,7 @@ function App(){
     {form && <FieldModal title={form.title} fields={form.fields} initial={form.initial} submitLabel={form.submitLabel} onClose={()=>setForm(null)} onSubmit={submitForm}/>}
     {importing && <SpriteImportModal onClose={()=>setImporting(false)} onImport={importSprite}/>}
     {importingScene && <SceneImportModal sceneName={scene?.name||'scene'} onClose={()=>setImportingScene(false)} onApply={importScene}/>}
+    {gallery && <TemplateGallery baseUrl={import.meta.env.BASE_URL} onClose={()=>setGallery(false)} onUse={useTemplate}/>}
   </div>;
 }
 

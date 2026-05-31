@@ -105,18 +105,20 @@ export function imageToScenePaint(img, { maxColors = 12 } = {}) {
   return { paint, palette };
 }
 
-// Merge horizontal runs of "solid" cells into collision rectangles (scene px).
+// Greedy 2D rectangle merge of "solid" cells into a few clean collision rects.
 export function paintToWallCollisions(paint, solidIndices) {
   const set = new Set(solidIndices);
   const cw = 256 / SCENE_COLS, ch = 224 / SCENE_ROWS;
+  const used = new Uint8Array(SCENE_COLS * SCENE_ROWS);
+  const free = (c, r) => c >= 0 && c < SCENE_COLS && r >= 0 && r < SCENE_ROWS && set.has(paint[r * SCENE_COLS + c]) && !used[r * SCENE_COLS + c];
   const rects = [];
   for (let r = 0; r < SCENE_ROWS; r++) {
-    let c = 0;
-    while (c < SCENE_COLS) {
-      if (set.has(paint[r * SCENE_COLS + c])) {
-        const s = c; while (c < SCENE_COLS && set.has(paint[r * SCENE_COLS + c])) c++;
-        rects.push({ x: Math.round(s * cw), y: Math.round(r * ch), w: Math.round((c - s) * cw), h: Math.round(ch) });
-      } else c++;
+    for (let c = 0; c < SCENE_COLS; c++) {
+      if (!free(c, r)) continue;
+      let w = 1; while (free(c + w, r)) w++;
+      let h = 1; while (r + h < SCENE_ROWS && [...Array(w)].every((_, i) => free(c + i, r + h))) h++;
+      for (let rr = r; rr < r + h; rr++) for (let cc = c; cc < c + w; cc++) used[rr * SCENE_COLS + cc] = 1;
+      rects.push({ x: Math.round(c * cw), y: Math.round(r * ch), w: Math.round(w * cw), h: Math.round(h * ch) });
     }
   }
   return rects;
