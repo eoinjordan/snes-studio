@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { motion } from 'framer-motion';
 import { Gamepad2, FolderOpen, Save, Code2, Play, MonitorPlay, Download, Upload, Wifi, WifiOff, Plus, ChevronRight, Palette, Map, GitBranch, Blocks, Image as ImageIcon, MousePointer2, Move, Square, Circle, Link2, Paintbrush, Eraser, Copy, Trash2, Wand2, Eye, ShieldCheck, CheckCircle2, AlertTriangle, Users, MessageSquare, Settings2, Layers, X } from 'lucide-react';
 import { StudioClient } from './api.js';
+import { imageToSprite, AI_PIXEL_TOOLS } from './sprite-import.js';
 import './styles.css';
 
 const SCENE_W = 256, SCENE_H = 224, SCALE_X = 2, SCALE_Y = 1.6;
@@ -404,6 +405,44 @@ function RomPreview({ romUrl, romName, onPick, onPlayBuiltIn }) {
   </section>;
 }
 
+// Import an image (e.g. AI-generated pixel art) and convert it to a sprite.
+function SpriteImportModal({ onClose, onImport }) {
+  const [img, setImg] = useState(null);
+  const [size, setSize] = useState(16);
+  const [colors, setColors] = useState(12);
+  const [transCorners, setTransCorners] = useState(true);
+  const [name, setName] = useState('Imported Sprite');
+  const [origUrl, setOrigUrl] = useState(null);
+  const sprite = useMemo(() => img ? imageToSprite(img, { size, maxColors: colors, transCorners }) : null, [img, size, colors, transCorners]);
+
+  const onFile = (e) => {
+    const f = e.target.files?.[0]; if (!f) return;
+    const url = URL.createObjectURL(f);
+    const im = new Image();
+    im.onload = () => { setImg(im); setOrigUrl(url); if (f.name) setName(f.name.replace(/\.[^.]+$/, '')); };
+    im.src = url;
+  };
+
+  return <div className="modal-backdrop"><div className="modal import-modal">
+    <div className="modal-head"><div><h2><Wand2 size={16}/> Import sprite from image</h2><p>Drop in any PNG/JPG — including AI-generated pixel art — and it’s converted to a SNES sprite.</p></div><button type="button" className="icon" onClick={onClose}><X size={16}/></button></div>
+    <div className="ai-tools"><span>Generate pixel art with:</span>{AI_PIXEL_TOOLS.map(t => <a key={t.name} href={t.url} target="_blank" rel="noopener noreferrer">{t.name} ↗</a>)}</div>
+    <div className="import-body">
+      <div className="import-controls">
+        <label className="field">Image file<input type="file" accept="image/*" onChange={onFile}/></label>
+        <label className="field">Sprite name<input value={name} onChange={e => setName(e.target.value)}/></label>
+        <label className="field">Size<select value={size} onChange={e => setSize(Number(e.target.value))}><option value={16}>16 × 16</option><option value={32}>32 × 32</option></select></label>
+        <label className="field">Colors: {colors}<input type="range" min={2} max={15} value={colors} onChange={e => setColors(Number(e.target.value))}/></label>
+        <label className="check-row"><input type="checkbox" checked={transCorners} onChange={e => setTransCorners(e.target.checked)}/> Make background (corners) transparent</label>
+      </div>
+      <div className="import-preview">
+        {origUrl ? <div><strong>Source</strong><img src={origUrl} alt="source"/></div> : <p className="hint">No image yet.</p>}
+        {sprite ? <div><strong>SNES sprite</strong><div className="checker"><SpriteThumb sprite={sprite} scale={Math.round(160 / size)}/></div><small>{sprite.palette.length - 1} colors</small></div> : null}
+      </div>
+    </div>
+    <div className="modal-actions"><Btn type="button" className="secondary" onClick={onClose}>Cancel</Btn><Btn type="button" className="primary" disabled={!sprite} onClick={() => onImport({ ...sprite, name })}><Plus size={16}/>Add sprite</Btn></div>
+  </div></div>;
+}
+
 function App(){
   const client = useRef(null);
   const [mode,setMode]=useState('loading'); const [project,setProject]=useState(null); const [inventory,setInventory]=useState({}); const [blocks,setBlocks]=useState({});
@@ -414,6 +453,7 @@ function App(){
   const [view,setView]=useState('scene'); const [prompt,setPrompt]=useState('Make the robot wave, then explain how to talk to characters.');
   const [patch,setPatch]=useState(null); const [log,setLog]=useState('Starting SNES Studio.'); const [form,setForm]=useState(null);
   const [rom,setRom]=useState(null); // {url, name}
+  const [importing,setImporting]=useState(false);
   const fileInput = useRef(null);
   const romInput = useRef(null);
   const releaseRepo = (import.meta.env.VITE_GITHUB_REPO || 'eoinjordan/snes-studio').trim();
@@ -490,6 +530,13 @@ function App(){
   async function exportC(){ try{ const r=await client.current.exportC(); setLog(`Generated ${r.files?.length||0} files.`);}catch(e){setLog(e.message);} }
   async function build(){ try{ const r=await client.current.makeRom(); setLog(`ROM artifact: ${r.rom} (${r.bytes} bytes).`);}catch(e){setLog(e.message);} }
   function openProject(){ fileInput.current?.click(); }
+  async function importSprite(sprite){
+    const id = uniqueId(slug(sprite.name||'sprite'), (project?.sprites||[]).map(s=>s.id));
+    const final = { ...sprite, id, frames: (sprite.frames||[]).map((f,i)=>({ ...f, id: `${id}_${i}` })) };
+    setImporting(false);
+    try { await commit(client.current.addSprite(final), `Imported sprite ${final.name}.`); setView('sprite'); }
+    catch(e){ setLog(`Could not import sprite: ${e.message}`); }
+  }
   function pickRom(){ romInput.current?.click(); }
   function playBuiltIn(){ setRom(prev=>{ if(prev?.url?.startsWith('blob:')) URL.revokeObjectURL(prev.url); const cacheBust = Date.now(); return { url: `${import.meta.env.BASE_URL}roms/poachermon.sfc?cacheBust=${cacheBust}`, name: 'Poachermon (built-in)' }; }); setView('preview'); setLog('Loaded the built-in Poachermon ROM.'); }
   function onRomFile(e){ const file=e.target.files?.[0]; if(!file) return; setRom(prev=>{ if(prev?.url) URL.revokeObjectURL(prev.url); return { url: URL.createObjectURL(file), name: file.name }; }); setView('preview'); setLog(`Loaded ROM ${file.name}.`); e.target.value=''; }
@@ -519,7 +566,7 @@ function App(){
         <section className="card"><div className="section-title"><h2>Project</h2><Pill tone={mode==='backend'?'good':'blue'}>{mode}</Pill></div><div className="project-card"><strong>{project?.name||'Loading'}</strong><span>{inventory.scene_count||0} scenes Â· {inventory.actor_count||0} actors Â· {inventory.event_chain_count||0} chains</span></div></section>
         <section className="card"><div className="section-title"><h2>Example Games</h2><Pill tone="warn">load</Pill></div>{EXAMPLES.map(ex=><button className={`row example-row ${project?.name===ex.name?'active':''}`} key={ex.slug} onClick={()=>loadExample(ex.slug, ex.name)}><span>{ex.name}</span><small>{ex.desc}</small><ChevronRight size={16}/></button>)}</section>
         <section className="card"><div className="section-title"><h2>Scenes</h2><button className="icon" title="Add scene" onClick={openSceneForm}><Plus size={16}/></button></div>{(project?.scenes||[]).map(s=><button className={`row ${s.id===scene?.id?'active':''}`} key={s.id} onClick={()=>{setSceneId(s.id); setActorId(null);}}><span>{s.name}</span><small>{s.actors?.length||0} actors Â· {s.triggers?.length||0} triggers</small><ChevronRight size={16}/></button>)}</section>
-        <section className="card"><div className="section-title"><h2><ImageIcon size={16}/> Assets</h2><button className="icon" title="Add sprite" onClick={openSpriteForm}><Plus size={16}/></button></div>{(project?.sprites||[]).map(s=><button className={`asset asset-spr ${s.id===sprite?.id?'active':''}`} key={s.id} onClick={()=>{setSpriteId(s.id); setView('sprite');}}><SpriteThumb sprite={s} scale={2}/><span>{s.name}<small>Sprite · {s.width}x{s.height} · {(s.frames||[]).length} frames</small></span></button>)}</section>
+        <section className="card"><div className="section-title"><h2><ImageIcon size={16}/> Assets</h2><div className="two"><button className="icon" title="Import sprite from image (AI art)" onClick={()=>setImporting(true)}><Wand2 size={16}/></button><button className="icon" title="Add sprite" onClick={openSpriteForm}><Plus size={16}/></button></div></div>{(project?.sprites||[]).map(s=><button className={`asset asset-spr ${s.id===sprite?.id?'active':''}`} key={s.id} onClick={()=>{setSpriteId(s.id); setView('sprite');}}><SpriteThumb sprite={s} scale={2}/><span>{s.name}<small>Sprite · {s.width}x{s.height} · {(s.frames||[]).length} frames</small></span></button>)}<Btn className="secondary full" onClick={()=>setImporting(true)}><Wand2 size={16}/>Import from image</Btn></section>
       </aside>
       <main className="main">
         <section className="card"><div className="tabs"><Tool icon={Map} label="Scene" active={view==='scene'} onClick={()=>setView('scene')}/><Tool icon={Palette} label="Sprite" active={view==='sprite'} onClick={()=>setView('sprite')}/><Tool icon={GitBranch} label="Events" active={view==='events'} onClick={()=>setView('events')}/><Tool icon={Blocks} label="Blocks" active={view==='blocks'} onClick={()=>setView('blocks')}/><Tool icon={MonitorPlay} label="ROM Preview" active={view==='preview'} onClick={()=>setView('preview')}/></div></section>
@@ -540,6 +587,7 @@ function App(){
     </div></div>
     <PatchModal patch={patch} onClose={()=>setPatch(null)} onApply={apply}/>
     {form && <FieldModal title={form.title} fields={form.fields} initial={form.initial} submitLabel={form.submitLabel} onClose={()=>setForm(null)} onSubmit={submitForm}/>}
+    {importing && <SpriteImportModal onClose={()=>setImporting(false)} onImport={importSprite}/>}
   </div>;
 }
 

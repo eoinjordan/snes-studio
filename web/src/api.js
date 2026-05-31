@@ -163,6 +163,13 @@ export class StudioClient {
     if (this.mode === 'backend') return this._commit(await this.fetchJson(`/api/event-chains/${chainId}/steps/${stepId}`, { method: 'DELETE' }));
     return this._localCommit(p => { const c = (p.eventChains || []).find(x => x.id === chainId); if (c) c.steps = (c.steps || []).filter(s => s.id !== stepId); });
   }
+  async addSprite(sprite) {
+    if (this.mode === 'backend') return this._commit(await this.fetchJson('/api/sprites', { method: 'POST', body: JSON.stringify({ sprite }) }));
+    return this._localCommit(p => {
+      if ((p.sprites ||= []).some(s => s.id === sprite.id)) throw new Error(`sprite already exists: ${sprite.id}`);
+      p.sprites.push(sprite);
+    });
+  }
   async updateSprite(spriteId, sprite) {
     if (this.mode === 'backend') return this._commit(await this.fetchJson(`/api/sprites/${spriteId}`, { method: 'PUT', body: JSON.stringify({ sprite }) }));
     return this._localCommit(p => {
