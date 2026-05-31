@@ -7,17 +7,25 @@ cd "$ROOT"
 
 python3 -m pip install --upgrade pip
 python3 -m pip install -e ".[server]" pyinstaller
+npm ci --prefix web
+npm run build --prefix web
 
-PAYLOAD="$ROOT/build/macos/root/usr/local/bin"
+BIN_PAYLOAD="$ROOT/build/macos/root/usr/local/bin"
+APP_PAYLOAD="$ROOT/build/macos/root/Applications"
 DIST="$ROOT/dist"
-mkdir -p "$PAYLOAD" "$DIST"
+mkdir -p "$BIN_PAYLOAD" "$APP_PAYLOAD" "$DIST"
 
-python3 -m PyInstaller --onefile --name snes-studio --distpath "$PAYLOAD" scripts/snes_studio_cli.py
-chmod +x "$PAYLOAD/snes-studio"
+python3 -m PyInstaller --onefile --name snes-studio --distpath "$BIN_PAYLOAD" scripts/snes_studio_cli.py
+chmod +x "$BIN_PAYLOAD/snes-studio"
+
+python3 -m PyInstaller --windowed --name "SNES Studio" --distpath "$APP_PAYLOAD" \
+  --add-data "web/dist:web/dist" \
+  --add-data "examples/mango-island:examples/mango-island" \
+  scripts/snes_studio_desktop.py
 
 pkgbuild \
   --root "$ROOT/build/macos/root" \
-  --identifier "com.snesstudio.cli" \
+  --identifier "com.snesstudio.app" \
   --version "$VERSION" \
   --install-location "/" \
   "$DIST/SNES-Studio-macOS.pkg"

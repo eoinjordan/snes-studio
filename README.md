@@ -197,17 +197,18 @@ Installers are built on tag pushes (`v*`) by:
 - `scripts/package_windows.ps1` -> `dist/SNES-Studio-Setup.exe`
 - `scripts/package_macos.sh` -> `dist/SNES-Studio-macOS.pkg`
 
-The web UI includes an **Installers** card with download links. To point those
-links to your GitHub release assets, set:
+The installers include:
+
+- **SNES Studio** — one-click desktop launcher that starts the local backend, serves the bundled web UI, opens the browser, and stores the editable Mango Island starter project in the user's app-data folder.
+- **snes-studio** — CLI for validation, export, simulation, server mode, and ROM builds.
+
+The web UI includes an **Installers** card with download links. By default those
+links point to the latest GitHub release for `eoinjordan/snes-studio`. To point
+them to a fork or another release repo, set:
 
 ```bash
 VITE_GITHUB_REPO=owner/repo
 ```
-
-If `VITE_GITHUB_REPO` is not set, the UI links to local static paths:
-
-- `/downloads/SNES-Studio-Setup.exe`
-- `/downloads/SNES-Studio-macOS.pkg`
 
 ## What 1.0.0 means
 

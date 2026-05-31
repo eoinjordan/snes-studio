@@ -8,6 +8,8 @@ Set-Location $root
 
 python -m pip install --upgrade pip
 python -m pip install -e ".[server]" pyinstaller
+npm ci --prefix web
+npm run build --prefix web
 
 $payload = Join-Path $root "build/windows/payload"
 $dist = Join-Path $root "dist"
@@ -15,6 +17,10 @@ New-Item -ItemType Directory -Force -Path $payload | Out-Null
 New-Item -ItemType Directory -Force -Path $dist | Out-Null
 
 python -m PyInstaller --onefile --name snes-studio --distpath $payload scripts/snes_studio_cli.py
+python -m PyInstaller --onefile --windowed --name "SNES Studio" --distpath $payload `
+  --add-data "web/dist;web/dist" `
+  --add-data "examples/mango-island;examples/mango-island" `
+  scripts/snes_studio_desktop.py
 
 $iscc = Get-Command iscc.exe -ErrorAction SilentlyContinue
 if (-not $iscc) {

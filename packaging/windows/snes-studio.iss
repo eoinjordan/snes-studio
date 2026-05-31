@@ -1,7 +1,8 @@
 #define MyAppName "SNES Studio"
 #define MyAppVersion GetEnv("SNES_STUDIO_VERSION")
 #define MyAppPublisher "SNES Studio"
-#define MyAppExeName "snes-studio.exe"
+#define MyAppExeName "SNES Studio.exe"
+#define MyCliExeName "snes-studio.exe"
 
 [Setup]
 AppId={{A850A1A8-5D43-47B8-9239-8BB8869056CC}
@@ -27,10 +28,12 @@ Name: "modifypath"; Description: "Add snes-studio to PATH"; GroupDescription: "A
 Source: "..\..\build\windows\payload\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{autoprograms}\SNES Studio CLI"; Filename: "{app}\{#MyAppExeName}"
+Name: "{autoprograms}\SNES Studio"; Filename: "{app}\{#MyAppExeName}"
+Name: "{autoprograms}\SNES Studio CLI"; Filename: "{app}\{#MyCliExeName}"
+Name: "{autodesktop}\SNES Studio"; Filename: "{app}\{#MyAppExeName}"
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Parameters: "--help"; Description: "View SNES Studio CLI help"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Description: "Launch SNES Studio"; Flags: nowait postinstall skipifsilent
 
 [Code]
 procedure CurStepChanged(CurStep: TSetupStep);
