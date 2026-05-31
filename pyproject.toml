@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "snes-studio"
-version = "1.0.0"
+version = "1.0.7"
 description = "Human-in-the-loop, agent-assisted SNES game studio for kids and mentors."
 readme = "README.md"
 requires-python = ">=3.11"

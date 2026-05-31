@@ -1,10 +1,32 @@
-﻿# SNES Studio 1.0.0
+﻿
+# SNES Studio 1.0.7
+
 
 SNES Studio is a kid-friendly, human-in-the-loop, agent-assisted game builder for Super Nintendo homebrew projects.
 
-![SNES Studio UI](web-ui-screenshot.png)
+## Screenshots
 
-This 1.0.0 repository is a complete publishable MVP. It gives you a polished editor shell, a real project model, scene editing primitives, sprite editing primitives, event-chain logic, safe agent patch review, C export, GitHub Pages demo mode, and local backend mode.
+### Main Editor UI
+![Main Editor UI](web-ui-screenshot.png)
+
+### Sample Game: Pocket Bugs
+![Pocket Bugs Contact Sheet](build/pocket-bugs-listed-contact.png)
+
+### Sample Game: Character Sheet
+![Character Sheet](build/listed-char-contact.png)
+
+### Sample Game: OpenArt Contact
+![OpenArt Contact](build/pocket-bugs-openart-contact.png)
+
+### Sprite Sheets
+![Sprite Sheet 0](build/sheet_contact_0.png)
+![Sprite Sheet 1](build/sheet_contact_1.png)
+![Sprite Sheet 2](build/sheet_contact_2.png)
+![Sprite Sheet 3](build/sheet_contact_3.png)
+![Sprite Sheet 4](build/sheet_contact_4.png)
+
+
+This 1.0.7 repository is a complete publishable MVP. It gives you a polished editor shell, a real project model, scene editing primitives, sprite editing primitives, event-chain logic, safe agent patch review, C export, GitHub Pages demo mode, and local backend mode.
 
 The studio opens on its flagship showcase game, **Pocket Bugs** - a garden-bug battler where kids catch bugs in matchboxes and battle in backyard tournaments. It's built entirely from SNES Studio's own scene/sprite/event model (`python scripts/make_pocket_bugs.py`) and ships with embedded CC0 OpenGameArt sprite/tile sources documented in `docs/ASSET_SOURCES.md`.
 
@@ -180,16 +202,14 @@ copyrighted ROMs are bundled and files never leave your browser. See
 
 ## Hosting the UI for free
 
-The web UI is a static Vite app (online demo mode â€” no backend needed). Deploy
-it on any static host:
 
-- **Vercel** â€” import the repo; `vercel.json` builds `web/` and serves `web/dist`.
-- **Netlify** â€” import the repo; `netlify.toml` sets base `web/`, publish `dist`.
-- **GitHub Pages** â€” push to GitHub and enable Pages; `.github/workflows/pages.yml`
-  builds and deploys `web/` automatically.
+The web UI is a static Vite app (online demo mode — no backend needed). Deploy it on any static host:
 
-All three host only the editor + EmulatorJS front-end. They cannot run the Python
-backend or build ROMs â€” that needs local mode or a future hosted build service.
+- **Vercel** — import the repo; `vercel.json` builds `web/` and serves `web/dist`.
+- **Netlify** — import the repo; `netlify.toml` sets base `web/`, publish `dist`.
+- **GitHub Pages** — push to GitHub and enable Pages; `.github/workflows/pages.yml` builds and deploys `web/` automatically.
+
+All three host only the editor + EmulatorJS front-end. They cannot run the Python backend or build ROMs — that needs local mode or a future hosted build service.
 
 A hosted static deploy can:
 
@@ -221,9 +241,38 @@ them to a fork or another release repo, set:
 VITE_GITHUB_REPO=owner/repo
 ```
 
-## What 1.0.0 means
 
-Version 1.0.0 means the repository is clean, publishable, documented, testable, and suitable as a public open-source starting point. It does not mean feature parity with GB Studio or a production-ready SNES compiler.
+## Versioning, Tags, and Build Information
+
+**Current version:** 1.0.7
+
+This project uses [semantic versioning](https://semver.org/) for releases. Each release is tagged in git as `vX.Y.Z` (e.g., `v1.0.7`).
+
+### Release and Build Tags
+
+- **Release tags**: Every push of a tag matching `v*` (e.g., `v1.0.7`) triggers the GitHub Actions workflows to build and publish release artifacts and installers.
+- **Build tags**: The installer and artifact workflows in `.github/workflows/release-installers.yml` and `.github/workflows/release-snes.yml` are triggered by these tags.
+- **Version bump**: Update the version in `pyproject.toml` and the README before tagging a new release.
+
+#### Example release process
+
+1. Update `pyproject.toml` and README to the new version (e.g., 1.0.7).
+2. Commit and push changes.
+3. Tag the release: `git tag v1.0.7 && git push --tags`
+4. GitHub Actions will build and upload the installers and artifacts for this tag.
+
+#### Installer build details
+
+Installers are built on tag pushes (`v*`) by:
+- `.github/workflows/release-installers.yml`
+- `scripts/package_windows.ps1` → `dist/SNES-Studio-Setup.exe`
+- `scripts/package_macos.sh` → `dist/SNES-Studio-macOS.pkg`
+
+See the workflow files for more details.
+
+## What 1.0.7 means
+
+Version 1.0.7 means the repository is clean, publishable, documented, testable, and suitable as a public open-source starting point. It does not mean feature parity with GB Studio or a production-ready SNES compiler.
 
 ## Roadmap
 
