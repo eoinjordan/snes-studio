@@ -1,5 +1,5 @@
 ﻿
-# SNES Studio 1.0.7
+# SNES Studio 1.0.8
 
 
 SNES Studio is a kid-friendly, human-in-the-loop, agent-assisted game builder for Super Nintendo homebrew projects.
@@ -26,7 +26,7 @@ SNES Studio is a kid-friendly, human-in-the-loop, agent-assisted game builder fo
 ![Sprite Sheet 4](build/sheet_contact_4.png)
 
 
-This 1.0.7 repository is a complete publishable MVP. It gives you a polished editor shell, a real project model, scene editing primitives, sprite editing primitives, event-chain logic, safe agent patch review, C export, GitHub Pages demo mode, and local backend mode.
+This 1.0.8 repository is a complete publishable MVP. It gives you a polished editor shell, a real project model, scene editing primitives, sprite editing primitives, event-chain logic, safe agent patch review, C export, GitHub Pages demo mode, and local backend mode.
 
 The studio opens on its flagship showcase game, **Pocket Bugs** - a garden-bug battler where kids catch bugs in matchboxes and battle in backyard tournaments. It's built entirely from SNES Studio's own scene/sprite/event model (`python scripts/make_pocket_bugs.py`) and ships with embedded CC0 OpenGameArt sprite/tile sources documented in `docs/ASSET_SOURCES.md`.
 
@@ -244,7 +244,7 @@ VITE_GITHUB_REPO=owner/repo
 
 ## Versioning, Tags, and Build Information
 
-**Current version:** 1.0.7
+**Current version:** 1.0.8
 
 This project uses [semantic versioning](https://semver.org/) for releases. Each release is tagged in git as `vX.Y.Z` (e.g., `v1.0.7`).
 
@@ -270,9 +270,9 @@ Installers are built on tag pushes (`v*`) by:
 
 See the workflow files for more details.
 
-## What 1.0.7 means
+## What 1.0.8 means
 
-Version 1.0.7 means the repository is clean, publishable, documented, testable, and suitable as a public open-source starting point. It does not mean feature parity with GB Studio or a production-ready SNES compiler.
+Version 1.0.8 means the repository is clean, publishable, documented, testable, and suitable as a public open-source starting point. It does not mean feature parity with GB Studio or a production-ready SNES compiler.
 
 ## Roadmap
 

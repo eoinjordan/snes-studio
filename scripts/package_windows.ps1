@@ -9,6 +9,8 @@ Set-Location $root
 python -m pip install --upgrade pip
 python -m pip install -e ".[server]" pyinstaller
 npm ci --prefix web
+# Force base '/' so the bundled SPA works when served from the desktop app root.
+$env:SNES_STUDIO_DESKTOP = "1"
 npm run build --prefix web
 
 $payload = Join-Path $root "build/windows/payload"

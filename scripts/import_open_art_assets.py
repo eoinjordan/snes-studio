@@ -93,8 +93,16 @@ BUG_SHEETS = {
     "mantis": "dragonfly.png",
     "moth": "moth.png",
     "bee": "bee.png",
-    "animal": "moth.png",
     "slime": "gnat.png",
+    # No real wildlife art ships in the CC0 insect pack, so each animal role is
+    # mapped to a DISTINCT insect sheet — keeps every sprite unique and readable
+    # instead of every animal collapsing onto one shared "moth" image.
+    "elephant": "moth.png",
+    "rhino": "beetle.png",
+    "lion": "bee.png",
+    "bird": "dragonfly.png",
+    "monkey": "firefly.png",
+    "animal": "gnat.png",
 }
 
 # Source rectangles are tile coordinates in 16px cells unless noted otherwise.
@@ -174,8 +182,15 @@ def tint_character(img: Image.Image, tint: tuple[int, int, int]) -> Image.Image:
 
 
 def character_image(kind: str, variant: int) -> Image.Image:
-    path = CACHE / "gassasin-retro" / "CharacterAnimation" / "Idle" / f"Untitled-0_{variant % 4}.png"
-    return fit_to_32(tint_character(rgba(path), ROLE_TINTS[kind]), margin=1)
+    # Idle frames 0/1/3 share one silhouette; only frame 2 differs. Alternate
+    # between the two distinct silhouettes and mirror every other pair so that
+    # characters with the same role tint still get a unique shape.
+    frame = 2 if variant % 2 else 0
+    path = CACHE / "gassasin-retro" / "CharacterAnimation" / "Idle" / f"Untitled-0_{frame}.png"
+    img = rgba(path)
+    if (variant // 2) % 2:
+        img = img.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+    return fit_to_32(tint_character(img, ROLE_TINTS[kind]), margin=1)
 
 
 def bug_image(kind: str) -> Image.Image:
@@ -250,6 +265,10 @@ def sprite_payload(sprite: dict, img: Image.Image, source_name: str) -> dict:
 
 def classify(sprite: dict) -> tuple[str, str]:
     text = f"{sprite.get('id', '')} {sprite.get('name', '')}".lower()
+    # Protagonist guard: the player is a person, not a creature. Names like
+    # "You (Bug Tamer)" contain "bug" and would otherwise be drawn as a beetle.
+    if any(w in text for w in ["player", "tamer", "protagonist", "hero", "you ("]):
+        return "character", "hero"
     if any(w in text for w in ["lady", "beet", "bug", "mant", "moth", "bee", "fly", "gnat"]):
         if "mant" in text:
             return "bug", "mantis"
@@ -258,8 +277,10 @@ def classify(sprite: dict) -> tuple[str, str]:
         if "bee" in text:
             return "bug", "bee"
         return "bug", "beetle"
-    if any(w in text for w in ["elephant", "rhino", "lion", "bird", "slime", "monkey"]):
-        return "bug", "animal"
+    # Each animal role maps to its own distinct insect sheet (see BUG_SHEETS).
+    for kind in ["elephant", "rhino", "lion", "bird", "monkey", "slime"]:
+        if kind in text:
+            return "bug", kind
     if any(w in text for w in ["house", "roof", "building"]):
         return "object", "house"
     if "chest" in text:

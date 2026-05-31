@@ -70,13 +70,19 @@ function SceneStats({ scene, tool, selectedZone, actor }) {
   </div>;
 }
 
+const OP_LABELS = {
+  add_scene: 'Add scene', add_actor: 'Add character', update_actor: 'Edit character',
+  add_event_chain: 'Add script', add_event_step: 'Add dialogue / step', update_event_step: 'Edit dialogue / step',
+  delete_event_step: 'Remove step', add_collision: 'Add collision', add_trigger: 'Add trigger',
+  add_sprite: 'Add sprite', update_sprite: 'Edit sprite',
+};
 function PatchModal({ patch, onClose, onApply }) {
   if (!patch) return null;
   return <div className="modal-backdrop"><div className="modal">
     <div className="modal-head"><div><h2>{patch.title}</h2><p>{patch.summary}</p></div><button className="icon" onClick={onClose}><X size={16}/></button></div>
-    <div className="review-note"><strong>Human review required.</strong><p>The helper is proposing editor operations. Read them before applying.</p></div>
-    <div className="patch-list">{(patch.changes||[]).map((c,i)=><div className="patch-line" key={i}><span>+</span><div><strong>{c.op}</strong><p>{c.actor?.name || c.chain?.name || c.step?.text || c.scene?.name || c.scene || c.chain || 'project change'}</p></div></div>)}</div>
-    <div className="modal-actions"><Btn className="secondary" onClick={onClose}>Reject</Btn><Btn className="primary" onClick={onApply}><ShieldCheck size={16}/>Apply reviewed patch</Btn></div>
+    <div className="review-note"><strong>Human review required.</strong><p>Here’s what the AI wants to change in your game. Read it, then apply.</p></div>
+    <div className="patch-list">{(patch.changes||[]).map((c,i)=><div className="patch-line" key={i}><span>+</span><div><strong>{OP_LABELS[c.op] || c.op}</strong><p>{c.fields?.text || c.fields?.name || c.actor?.name || c.chain?.name || c.step?.text || c.scene?.name || c.actor_id || c.step_id || c.scene || c.chain || 'project change'}</p></div></div>)}</div>
+    <div className="modal-actions"><Btn className="secondary" onClick={onClose}>Reject</Btn><Btn className="primary" onClick={onApply}><ShieldCheck size={16}/>Apply changes</Btn></div>
   </div></div>;
 }
 
@@ -487,11 +493,11 @@ function ScenePaintThumb({ paint, palette, scale = 7 }) {
 // Bring-your-own-key AI settings for the Coding Helper.
 function AiSettingsModal({ onClose, onSaved }) {
   const [key, setKey] = useState(() => { try { return localStorage.getItem('snesstudio_llm_key') || ''; } catch { return ''; } });
-  const [model, setModel] = useState(() => { try { return localStorage.getItem('snesstudio_llm_model') || 'claude-3-5-haiku-latest'; } catch { return 'claude-3-5-haiku-latest'; } });
+  const [model, setModel] = useState(() => { try { return localStorage.getItem('snesstudio_llm_model') || 'claude-haiku-4-5'; } catch { return 'claude-haiku-4-5'; } });
   const save = () => {
     try {
       if (key.trim()) localStorage.setItem('snesstudio_llm_key', key.trim()); else localStorage.removeItem('snesstudio_llm_key');
-      localStorage.setItem('snesstudio_llm_model', model.trim() || 'claude-3-5-haiku-latest');
+      localStorage.setItem('snesstudio_llm_model', model.trim() || 'claude-haiku-4-5');
     } catch {}
     onSaved(!!key.trim()); onClose();
   };
@@ -499,7 +505,7 @@ function AiSettingsModal({ onClose, onSaved }) {
     <div className="modal-head"><div><h2><Wand2 size={16}/> AI Coding Helper settings</h2><p>Bring your own Anthropic API key for real AI help. The helper returns a patch you review before it’s applied.</p></div><button type="button" className="icon" onClick={onClose}><X size={16}/></button></div>
     <div className="review-note"><strong>Your key stays in this browser.</strong><p>It’s saved in localStorage and sent only to api.anthropic.com from your machine. Leave blank to use the offline deterministic helper. Get a key at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer">console.anthropic.com</a>.</p></div>
     <label className="field">Anthropic API key<input type="password" placeholder="sk-ant-…" value={key} onChange={e => setKey(e.target.value)} autoFocus/></label>
-    <label className="field">Model<input value={model} onChange={e => setModel(e.target.value)} placeholder="claude-3-5-haiku-latest"/></label>
+    <label className="field">Model<input value={model} onChange={e => setModel(e.target.value)} placeholder="claude-haiku-4-5"/></label>
     <div className="modal-actions"><Btn type="button" className="secondary" onClick={onClose}>Cancel</Btn><Btn type="button" className="primary" onClick={save}><ShieldCheck size={16}/>Save</Btn></div>
   </div></div>;
 }
@@ -680,8 +686,8 @@ function App(){
     } catch(_) {}
   }
 
-  async function propose(){ try{ setLog(aiOn?'Asking the AI helper…':'Building a safe patch…'); const p=await client.current.propose(prompt); setPatch(p); setLog('Patch proposed. Review before applying.'); }catch(e){ setLog(`Helper error: ${e.message}`); } }
-  async function apply(){ const proj = await client.current.applyPatch(patch); setPatch(null); const p = proj.project || client.current.project; setProject(p); setInventory(client.current.inventory(p)); setLog('Patch applied after human review.'); }
+  async function propose(){ try{ setLog(aiOn?'Asking the AI for help…':'Building a safe suggestion…'); const p=await client.current.propose(prompt); setPatch(p); setLog('AI suggested changes. Review them before applying.'); }catch(e){ setLog(`Helper error: ${e.message}`); } }
+  async function apply(){ const proj = await client.current.applyPatch(patch); setPatch(null); const p = proj.project || client.current.project; setProject(p); setInventory(client.current.inventory(p)); setSceneId(s=>s||p?.scenes?.[0]?.id); setLog('Changes applied after your review.'); }
   async function exportC(){ try{ const r=await client.current.exportC(); setLog(`Generated ${r.files?.length||0} files.`);}catch(e){setLog(e.message);} }
   async function build(){
     if(mode!=='backend'){ setLog('Building a playable ROM needs the offline app (Vercel/online can only edit + preview). Download the desktop app, or use the built-in Pocket Bugs showcase ROM.'); return; }
@@ -757,7 +763,7 @@ function App(){
           ? <><SceneHierarchy scene={scene} selectedActor={actor?.id} setSelectedActor={setActorId} selectedZone={selectedZone} setSelectedZone={setSelectedZone}/>{selectedZone ? <SceneTools scene={scene} scenes={project?.scenes||[]} selectedZone={selectedZone} setSelectedZone={setSelectedZone} onUpdateCollision={onUpdateCollision} onDeleteCollision={onDeleteCollision} onUpdateTrigger={onUpdateTrigger} onDeleteTrigger={onDeleteTrigger} onLinkTriggerScene={linkTriggerToScene}/> : <Inspector scene={scene} scenes={project?.scenes||[]} actor={actor} chains={project?.eventChains||[]} onUpdate={onUpdateActor} onDelete={onDeleteActor} onLinkActorScene={linkActorToScene}/>}</>
           : <Inspector scene={scene} scenes={project?.scenes||[]} actor={actor} chains={project?.eventChains||[]} onUpdate={onUpdateActor} onDelete={onDeleteActor} onLinkActorScene={linkActorToScene}/>}
         <section className="card"><div className="section-title"><h2><Download size={18}/> Installers</h2></div><p className="hint">Download desktop installers from the latest release.</p><div className="two"><a className="btn secondary" href={winInstaller}><Download size={16}/>Windows</a><a className="btn secondary" href={macInstaller}><Download size={16}/>macOS</a></div></section>
-        <section className="card"><div className="section-title"><h2><Wand2 size={18}/> Coding Helper</h2><div className="two"><Pill tone={aiOn?'good':'blue'}>{aiOn?'AI on':'offline'}</Pill><button className="icon" title="AI settings (API key)" onClick={()=>setAiSettings(true)}><Settings2 size={16}/></button></div></div><textarea value={prompt} onChange={e=>setPrompt(e.target.value)}/><Btn className="primary full" onClick={propose}><Wand2 size={16}/>{aiOn?'Ask AI for a patch':'Propose safe patch'}</Btn>{!aiOn?<p className="hint">Add an Anthropic API key in settings for real AI help.</p>:null}</section>
+        <section className="card"><div className="section-title"><h2><Wand2 size={18}/> Coding Helper</h2><div className="two"><Pill tone={aiOn?'good':'blue'}>{aiOn?'AI on':'offline'}</Pill><button className="icon" title="AI settings (API key)" onClick={()=>setAiSettings(true)}><Settings2 size={16}/></button></div></div><textarea value={prompt} onChange={e=>setPrompt(e.target.value)} placeholder="Ask in plain English, e.g. “add a sign that says welcome”, “make the elephant say thank you”, or “move the rival next to the judge”."/><Btn className="primary full" onClick={propose}><Wand2 size={16}/>Ask AI for help</Btn>{!aiOn?<p className="hint">Add an Anthropic API key in settings for real AI help.</p>:null}</section>
         <section className="card"><div className="section-title"><h2><CheckCircle2 size={18}/> Build Checks</h2></div><p className="check"><CheckCircle2 size={14}/>Project schema valid</p><p className="check"><CheckCircle2 size={14}/>Event chains compile to C</p>{
   mode!=='backend'
     ? <p className="warn"><AlertTriangle size={14}/>Online mode: edit & preview only. Build playable ROMs in the offline app.</p>

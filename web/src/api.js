@@ -8,11 +8,16 @@ Shape: {"title": str, "summary": str, "risk": "low"|"medium", "changes": [ ...op
 Allowed ops (use ONLY these):
 - {"op":"add_scene","scene":{"id":str,"name":str}}
 - {"op":"add_actor","scene":sceneId,"actor":{"id":str,"name":str,"x":0-256,"y":0-224,"sprite":spriteId}}
+- {"op":"update_actor","scene":sceneId,"actor_id":str,"fields":{"x"?:0-256,"y"?:0-224,"name"?:str,"sprite"?:spriteId,"direction"?:"up"|"down"|"left"|"right"}}
 - {"op":"add_event_chain","chain":{"id":str,"name":str,"trigger":{"type":"scene_start"|"actor_interact"|"zone_enter","scene"?:id,"actor"?:id,"zone"?:id}}}
 - {"op":"add_event_step","chain":chainId,"step":{"id":str,"type":TYPE,...}}
+- {"op":"update_event_step","chain":chainId,"step_id":str,"fields":{...same fields as the step TYPE...}}
+- {"op":"delete_event_step","chain":chainId,"step_id":str}
+- {"op":"add_collision","scene":sceneId,"collision":{"id":str,"x":int,"y":int,"w":int,"h":int}}
+- {"op":"add_trigger","scene":sceneId,"trigger":{"id":str,"name":str,"x":int,"y":int,"w":int,"h":int,"event"?:chainId}}
 
 Event step TYPE and fields:
-- show_text {"text":str}
+- show_text {"text":str}      // a line of dialogue
 - change_scene {"scene":sceneId}
 - set_flag {"flag":str,"value":bool}
 - set_variable {"variable":str,"value":number|str}
@@ -21,7 +26,9 @@ Event step TYPE and fields:
 - face_player {"actor":id}
 - play_sound {"sound":str}
 
-Rules: reuse existing scene/sprite ids from the project; invent NEW unique ids for anything you add; keep it small and reviewable. Output JSON only.`;
+Capabilities: dialogue and game logic ("scripts") are event chains made of steps — add_event_step with type show_text writes a new dialogue line, update_event_step edits an existing line's text. To change which sprite a character uses, update_actor with fields.sprite. To move/rename a character, update_actor with fields.x/fields.y/fields.name. (Drawing new sprite pixels is done in the Sprite editor / image import, not via this helper.)
+
+Rules: reuse existing scene/sprite/actor/chain/step ids from the project; invent NEW unique ids only for things you add; prefer editing existing items (update_*) when the request is about something already in the project; keep it small and reviewable. Output JSON only.`;
 
 export class StudioClient {
   constructor() {
@@ -52,13 +59,22 @@ export class StudioClient {
       candidates.push('http://localhost:8765');
     }
     try {
+      // The desktop app may open the browser a beat before its local server is
+      // ready to accept connections. Retry briefly so a slow start doesn't drop
+      // us into online demo mode permanently. Only the desktop app is served from
+      // localhost; the hosted demo has no backend, so it shouldn't pay the wait.
       let ok = false;
-      for (const base of candidates) {
-        try {
-          await this._tryBackend(base);
-          ok = true;
-          break;
-        } catch (_) {}
+      const isLocal = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+      const attempts = isLocal ? 12 : 1;
+      for (let i = 0; i < attempts && !ok; i++) {
+        for (const base of candidates) {
+          try {
+            await this._tryBackend(base);
+            ok = true;
+            break;
+          } catch (_) {}
+        }
+        if (!ok) await new Promise(r => setTimeout(r, 300));
       }
       if (!ok) throw new Error('backend unavailable');
       this.mode = 'backend';
@@ -114,8 +130,8 @@ export class StudioClient {
   }
   // ---- AI "Coding Helper": real LLM (bring-your-own-key) or deterministic fallback ----
   llmConfig() {
-    try { return { key: localStorage.getItem('snesstudio_llm_key') || '', model: localStorage.getItem('snesstudio_llm_model') || 'claude-3-5-haiku-latest' }; }
-    catch { return { key: '', model: 'claude-3-5-haiku-latest' }; }
+    try { return { key: localStorage.getItem('snesstudio_llm_key') || '', model: localStorage.getItem('snesstudio_llm_model') || 'claude-haiku-4-5' }; }
+    catch { return { key: '', model: 'claude-haiku-4-5' }; }
   }
   projectSummary() {
     const p = this.project || {};
@@ -152,11 +168,16 @@ export class StudioClient {
   }
   applyLocalPatch(patch) {
     const p = structuredClone(this.project);
+    const sceneOf = id => (p.scenes || []).find(s => s.id === id);
+    const chainOf = id => (p.eventChains || []).find(c => c.id === id);
     for (const ch of patch.changes || []) {
       if (ch.op === 'add_event_chain' && !p.eventChains.some(c => c.id === ch.chain.id)) p.eventChains.push({ ...ch.chain, steps: [] });
-      if (ch.op === 'add_event_step') { const c = p.eventChains.find(x => x.id === ch.chain); if (c) c.steps.push(ch.step); }
+      if (ch.op === 'add_event_step') { const c = chainOf(ch.chain); if (c) (c.steps ||= []).push(ch.step); }
+      if (ch.op === 'update_event_step') { const c = chainOf(ch.chain); const st = c && (c.steps || []).find(s => s.id === ch.step_id); if (st) Object.assign(st, ch.fields || {}); }
+      if (ch.op === 'delete_event_step') { const c = chainOf(ch.chain); if (c) c.steps = (c.steps || []).filter(s => s.id !== ch.step_id); }
       if (ch.op === 'add_scene' && !p.scenes.some(s => s.id === ch.scene.id)) p.scenes.push({ ...ch.scene, actors: [], collision: [], triggers: [] });
-      if (ch.op === 'add_actor') { const s = p.scenes.find(x => x.id === ch.scene); if (s && !s.actors.some(a => a.id === ch.actor.id)) s.actors.push(ch.actor); }
+      if (ch.op === 'add_actor') { const s = sceneOf(ch.scene); if (s && !(s.actors ||= []).some(a => a.id === ch.actor.id)) s.actors.push(ch.actor); }
+      if (ch.op === 'update_actor') { const s = sceneOf(ch.scene); const a = s && (s.actors || []).find(x => x.id === ch.actor_id); if (a) Object.assign(a, ch.fields || {}); }
     }
     this.project = p;
     return { applied: true, backup: 'browser-memory', project: p };
@@ -218,13 +239,6 @@ export class StudioClient {
   async deleteStep(chainId, stepId) {
     if (this.mode === 'backend') return this._commit(await this.fetchJson(`/api/event-chains/${chainId}/steps/${stepId}`, { method: 'DELETE' }));
     return this._localCommit(p => { const c = (p.eventChains || []).find(x => x.id === chainId); if (c) c.steps = (c.steps || []).filter(s => s.id !== stepId); });
-  }
-  async addSprite(sprite) {
-    if (this.mode === 'backend') return this._commit(await this.fetchJson('/api/sprites', { method: 'POST', body: JSON.stringify({ sprite }) }));
-    return this._localCommit(p => {
-      if ((p.sprites ||= []).some(s => s.id === sprite.id)) throw new Error(`sprite already exists: ${sprite.id}`);
-      p.sprites.push(sprite);
-    });
   }
   async updateSprite(spriteId, sprite) {
     if (this.mode === 'backend') return this._commit(await this.fetchJson(`/api/sprites/${spriteId}`, { method: 'PUT', body: JSON.stringify({ sprite }) }));

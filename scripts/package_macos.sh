@@ -8,6 +8,8 @@ cd "$ROOT"
 python3 -m pip install --upgrade pip
 python3 -m pip install -e ".[server]" pyinstaller
 npm ci --prefix web
+# Force base '/' so the bundled SPA works when served from the desktop app root.
+export SNES_STUDIO_DESKTOP=1
 npm run build --prefix web
 
 BIN_PAYLOAD="$ROOT/build/macos/root/usr/local/bin"
