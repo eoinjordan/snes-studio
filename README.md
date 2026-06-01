@@ -229,6 +229,21 @@ Installers are built on tag pushes (`v*`) by:
 - `scripts/package_windows.ps1` -> `dist/SNES-Studio-Setup.exe`
 - `scripts/package_macos.sh` -> `dist/SNES-Studio-macOS.pkg`
 
+To build and verify the Windows installer locally:
+
+```powershell
+# One-time prerequisite for full installer output:
+# install Inno Setup 6 so ISCC.exe exists (PATH or default install dir)
+./scripts/package_windows.ps1 -Version 1.0.9-local
+```
+
+If you only need to verify the desktop/CLI payload binaries locally (without generating the `.exe` installer):
+
+```powershell
+./scripts/package_windows.ps1 -Version 1.0.9-local -SkipInstaller
+./build/windows/payload/snes-studio.exe validate examples/hello-human/project.snesproj --json
+```
+
 The installers include:
 
 - **SNES Studio** â€” one-click desktop launcher that starts the local backend, serves the bundled web UI, opens the browser, and stores the editable Pocket Bugs starter project in the user's app-data folder.
@@ -285,4 +300,3 @@ See:
 - `docs/TOOLCHAIN.md`
 - `docs/EMULATOR.md`
 - `docs/HUMAN_IN_THE_LOOP.md`
-

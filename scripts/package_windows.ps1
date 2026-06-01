@@ -1,5 +1,6 @@
 param(
-  [string]$Version = "0.0.0-dev"
+  [string]$Version = "0.0.0-dev",
+  [switch]$SkipInstaller
 )
 
 $ErrorActionPreference = "Stop"
@@ -31,9 +32,24 @@ python -m PyInstaller --onefile --windowed --name "SNES Studio" --distpath $payl
   --add-data "examples/poachermon;examples/poachermon" `
   scripts/snes_studio_desktop.py
 
+if ($SkipInstaller) {
+  Write-Host "Skipping installer generation. Payload executables are in build/windows/payload."
+  exit 0
+}
+
 $iscc = Get-Command iscc.exe -ErrorAction SilentlyContinue
 if (-not $iscc) {
-  throw "Inno Setup compiler (iscc.exe) not found. Install Inno Setup or run in CI where it is provisioned."
+  $fallbacks = @(
+    "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+    "${env:ProgramFiles}\Inno Setup 6\ISCC.exe"
+  )
+  $isccPath = $fallbacks | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
+  if ($isccPath) {
+    $iscc = @{ Source = $isccPath }
+  }
+}
+if (-not $iscc) {
+  throw "Inno Setup compiler (iscc.exe) not found. Install Inno Setup 6 and rerun, or pass -SkipInstaller for local payload testing."
 }
 
 $env:SNES_STUDIO_VERSION = $Version
