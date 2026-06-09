@@ -20,13 +20,16 @@ Do not commit a bot token or client secret. The web Activity only needs the publ
 3. Go to Installation and enable both User Install and Guild Install.
 4. Go to Activities → Settings and enable Activities.
 5. Keep the default Entry Point command, or rename it to `Launch SNES Studio`.
-6. Go to Activities → URL Mappings and add one root mapping:
+6. Deploy `web/dist` to a public HTTPS host such as Vercel, Netlify, or your own domain.
+7. Go to Activities → URL Mappings and add one root mapping:
 
 | Prefix | Target |
 | --- | --- |
-| `/` | `eoinjordan.github.io/snes-studio` |
+| `/` | `<your-public-host>` |
 
-The target must not include `https://`.
+The target must not include `https://`. For example, use `snes-studio.vercel.app`, not `https://snes-studio.vercel.app`.
+
+GitHub Pages can also work, but only if Pages is enabled for the repository and plan. If using project Pages, build with relative assets as this repo does, then map `/` to the project page directory target.
 
 ## Build configuration
 

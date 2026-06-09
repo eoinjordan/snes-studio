@@ -239,13 +239,13 @@ Application details for the current Discord app:
 - Suggested description: `Create and share SNES-style games in Discord. Build maps, sprites, events, top-down adventures, and platformer scenes, then export your project.`
 - Suggested tags: `snes`, `super-nintendo`, `game-dev`, `pixel-art`, `education`
 
-In Discord Developer Portal, enable Activities and add this URL mapping:
+Deploy `web/dist` to Vercel, Netlify, or another public HTTPS host. In Discord Developer Portal, enable Activities and add this URL mapping:
 
 | Prefix | Target |
 | --- | --- |
-| `/` | `eoinjordan.github.io/snes-studio` |
+| `/` | `<your-public-host>` |
 
-Do not include `https://` in the mapping target. Full setup instructions are in `docs/DISCORD_ACTIVITY.md`.
+Do not include `https://` in the mapping target. GitHub Pages also works if Pages is enabled for the repository and plan; this repo’s relative Vite asset base supports Discord proxy mappings. Full setup instructions are in `docs/DISCORD_ACTIVITY.md`.
 
 ## Desktop installers (Windows + macOS)
 
