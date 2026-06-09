@@ -30,7 +30,7 @@ SNES Studio is a kid-friendly, human-in-the-loop, agent-assisted game builder fo
 ![Sprite Sheet 4](build/sheet_contact_4.png)
 
 
-This 1.0.9 repository is a complete publishable MVP. It gives you a polished editor shell, a real project model, scene editing primitives, sprite editing primitives, event-chain logic, safe agent patch review, C export, GitHub Pages demo mode, and local backend mode.
+This 1.1.0 repository is a complete publishable MVP. It gives you a polished editor shell, a real project model, top-down and platformer scene workflows, sprite editing primitives, event-chain logic, optional reviewed AI helper tools, C export, GitHub Pages demo mode, Discord Activity mode, and local backend mode.
 
 The studio opens on its flagship showcase game, **Pocket Bugs** - a garden-bug battler where kids catch bugs in matchboxes and battle in backyard tournaments. It's built entirely from SNES Studio's own scene/sprite/event model (`python scripts/make_pocket_bugs.py`) and ships with embedded CC0 OpenGameArt sprite/tile sources documented in `docs/ASSET_SOURCES.md`.
 
@@ -56,15 +56,17 @@ The agent never silently edits the game. Every helper change is reviewable.
 
 - Polished React editor UI
 - GitHub Pages online demo mode
+- Discord Activity mode for publishing inside Discord
 - Local Python/FastAPI backend mode
 - Scene list and scene canvas
+- Top-down adventure scenes and platformer / side-scroller scenes
 - Tile-based background editor (Zelda/Pokemon-style) with a bundled OpenGameArt overworld tileset, painted to real SNES BG tilemaps
 - Actor editing: add, update, delete, move
 - Collision and trigger zones
 - Pixel sprite editor data model
 - Event chain editor data model
 - Block palette definitions
-- Human-reviewed agent patches
+- Optional human-reviewed agent patches, hidden behind Studio Settings by default
 - Safe backup-before-write server behavior
 - Project import/export as `.snesproj`
 - Generated C export using Jinja templates
@@ -225,6 +227,26 @@ A hosted static deploy can:
 - download `.snesproj`
 - play a homebrew `.sfc`/`.smc` you load in the ROM Preview tab
 
+## Discord Activity
+
+SNES Studio can run as a Discord Activity using the Embedded App SDK. The web app detects Discord launches, performs the SDK ready handshake, and keeps normal browser/desktop behavior unchanged.
+
+Application details for the current Discord app:
+
+- Application ID / Client ID: `1514005235205668924`
+- Public Key: `f47a2a4b0e4981a76f7bb7288cb9de372693dafef108d9ebf0da9b12ef3ec493`
+- App icon: `web/public/branding/discord-icon-1024.png`
+- Suggested description: `Create and share SNES-style games in Discord. Build maps, sprites, events, top-down adventures, and platformer scenes, then export your project.`
+- Suggested tags: `snes`, `super-nintendo`, `game-dev`, `pixel-art`, `education`
+
+In Discord Developer Portal, enable Activities and add this URL mapping:
+
+| Prefix | Target |
+| --- | --- |
+| `/` | `eoinjordan.github.io/snes-studio` |
+
+Do not include `https://` in the mapping target. Full setup instructions are in `docs/DISCORD_ACTIVITY.md`.
+
 ## Desktop installers (Windows + macOS)
 
 Installers are built on tag pushes (`v*`) by:
@@ -238,13 +260,13 @@ To build and verify the Windows installer locally:
 ```powershell
 # One-time prerequisite for full installer output:
 # install Inno Setup 6 so ISCC.exe exists (PATH or default install dir)
-./scripts/package_windows.ps1 -Version 1.0.9-local
+./scripts/package_windows.ps1 -Version 1.1.0-local
 ```
 
 If you only need to verify the desktop/CLI payload binaries locally (without generating the `.exe` installer):
 
 ```powershell
-./scripts/package_windows.ps1 -Version 1.0.9-local -SkipInstaller
+./scripts/package_windows.ps1 -Version 1.1.0-local -SkipInstaller
 ./build/windows/payload/snes-studio.exe validate examples/hello-human/project.snesproj --json
 ```
 
@@ -264,7 +286,7 @@ VITE_GITHUB_REPO=owner/repo
 
 ## Versioning, Tags, and Build Information
 
-**Current version:** 1.0.9
+**Current version:** 1.1.0
 
 This project uses [semantic versioning](https://semver.org/) for releases. Each release is tagged in git as `vX.Y.Z` (e.g., `v1.0.7`).
 
@@ -290,9 +312,9 @@ Installers are built on tag pushes (`v*`) by:
 
 See the workflow files for more details.
 
-## What 1.0.9 means
+## What 1.1.0 means
 
-Version 1.0.9 means the repository is clean, publishable, documented, testable, and suitable as a public open-source starting point. It does not mean feature parity with GB Studio or a production-ready SNES compiler.
+Version 1.1.0 means the repository is clean, publishable, documented, testable, supports Discord Activity launch, and includes first-class platformer scene metadata/runtime behavior. It does not mean feature parity with GB Studio or a production-ready SNES compiler.
 
 ## Roadmap
 
@@ -303,4 +325,5 @@ See:
 - `docs/ISSUES.md`
 - `docs/TOOLCHAIN.md`
 - `docs/EMULATOR.md`
+- `docs/DISCORD_ACTIVITY.md`
 - `docs/HUMAN_IN_THE_LOOP.md`

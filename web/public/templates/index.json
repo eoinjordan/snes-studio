@@ -18,6 +18,12 @@
     "file": "templates/dungeon-escape.snesproj"
   },
   {
+    "id": "platformer-starter",
+    "name": "Platformer Starter",
+    "description": "Side-scrolling starter scene with ground collision, ledges, a jumpable player, a guide NPC, and a level-exit trigger.",
+    "file": "templates/platformer-starter.snesproj"
+  },
+  {
     "id": "town-tales",
     "name": "Town Tales",
     "description": "A cosy town with an enterable house. Chat to villagers; doors link the scenes.",

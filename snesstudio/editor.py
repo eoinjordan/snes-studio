@@ -15,11 +15,11 @@ def _dict(project: Project) -> dict[str, Any]:
     return model_to_jsonable(Project.model_validate(model_to_jsonable(project)))
 
 
-def add_scene(project: Project | dict[str, Any], scene_id: str, name: str, background: str | None = None) -> dict[str, Any]:
+def add_scene(project: Project | dict[str, Any], scene_id: str, name: str, background: str | None = None, mode: str = "topdown") -> dict[str, Any]:
     p = _clone(project)
     if any(s.id == scene_id for s in p.scenes):
         raise ValueError(f"scene already exists: {scene_id}")
-    p.scenes.append(Scene(id=scene_id, name=name, background=background))
+    p.scenes.append(Scene(id=scene_id, name=name, background=background, mode=mode))
     return _dict(p)
 
 
@@ -39,6 +39,7 @@ def update_scene(project: Project | dict[str, Any], scene_id: str, **fields: Any
     data.update({k: v for k, v in fields.items() if v is not None})
     updated = Scene.model_validate(data)
     scene.name = updated.name
+    scene.mode = updated.mode
     scene.background = updated.background
     scene.paint = updated.paint
     scene.paint_palette = updated.paint_palette

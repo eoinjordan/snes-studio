@@ -40,6 +40,23 @@ def test_render_tilemaps_emits_maps_and_bg(tmp_path):
     assert len(result['scenes']) == len(load_project(PROJECT).scenes)
 
 
+def test_platformer_template_validates_and_marks_scene_mode():
+    project = load_project(Path('web/public/templates/platformer-starter.snesproj'))
+    assert project.name == 'Platformer Starter'
+    assert project.scenes[0].mode == 'platformer'
+    assert any(c.id == 'ground' for c in project.scenes[0].collision)
+    assert any(t.id == 'exit' for t in project.scenes[0].triggers)
+
+
+def test_platformer_runtime_branch_emitted(tmp_path):
+    platformer = Path('web/public/templates/platformer-starter.snesproj')
+    make_rom(platformer, tmp_path / 'platformer.sfc', skip_build=True)
+    runtime = (tmp_path / 'generated' / 'platformer' / 'snesstudio_snes.c').read_text()
+    assert 'SCENE_MODE_PLATFORM' in runtime
+    assert 'current_scene_mode = SCENE_MODE_PLATFORM' in runtime
+    assert 'player_vy = -JUMP_SPEED' in runtime
+
+
 def test_hex_to_bgr555():
     assert assets.hex_to_bgr555('#000000') == 0
     assert assets.hex_to_bgr555('#ffffff') == 0x7fff

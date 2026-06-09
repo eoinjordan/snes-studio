@@ -5,11 +5,11 @@
 #include "snesstudio_runtime.h"
 
 /*
- * Generated SNES runtime engine (PVSnesLib) — adventure / top-down overworld.
+ * Generated SNES runtime engine (PVSnesLib) — top-down adventure and platformer scenes.
  *
  * This replaces the desktop printf simulation (snesstudio_runtime.c) for real
  * ROM builds. It loads a scene's background tilemap, draws the player sprite,
- * reads the controller, walks the player with tilemap collision, and renders a
+ * reads the controller, moves the player with tilemap collision, and renders a
  * dialogue box for show_text.
  *
  * Targets PVSnesLib. A few PPU/OAM helper signatures vary slightly between
@@ -26,7 +26,12 @@
 {% for sprite in project.sprites %}{% if sprite.id == player_sprite_id %}{% set sp.w = sprite.width %}{% set sp.h = sprite.height %}{% endif %}{% endfor %}
 
 #define BG_WALL_CHAR 3
+#define SCENE_MODE_TOPDOWN   0
+#define SCENE_MODE_PLATFORM  1
 #define WALK_SPEED   1
+#define JUMP_SPEED   5
+#define GRAVITY_STEP 1
+#define MAX_FALL     5
 #define SPR_W        {{ sp.w }}
 #define SPR_H        {{ sp.h }}
 #define SPR_OAM_SIZE {{ 'OBJ_SIZE32_L64' if sp.w >= 32 or sp.h >= 32 else 'OBJ_SIZE16_L32' }}
@@ -40,8 +45,10 @@
 static const unsigned short *current_map = map_{{ first }};
 static const unsigned char *current_col = col_{{ first }};
 static const unsigned short *current_pal = pal_{{ first }};
+static unsigned char current_scene_mode = {{ 'SCENE_MODE_PLATFORM' if project.scenes and project.scenes[0].mode == 'platformer' else 'SCENE_MODE_TOPDOWN' }};
 static short player_x = {{ ns.player.x if ns.player else 120 }};
 static short player_y = {{ ns.player.y if ns.player else 112 }};
+static short player_vy = 0;
 static unsigned char awaiting_player_place = 1;
 static unsigned short prev_pad = 0;
 
@@ -118,6 +125,8 @@ void snesstudio_set_scene(const char *scene_id, const char *scene_name) {
     awaiting_player_place = 1;
 {% for scene in project.scenes %}
     if (snesstudio_str_eq(scene_id, "{{ scene.id }}")) {
+        current_scene_mode = {{ 'SCENE_MODE_PLATFORM' if scene.mode == 'platformer' else 'SCENE_MODE_TOPDOWN' }};
+        player_vy = 0;
         current_map = map_{{ scene.id | c_ident }};
         current_col = col_{{ scene.id | c_ident }};
         bgInitTileSet(1, (unsigned char *)&gfx_bgtiles, (unsigned char *)&pal_{{ scene.id | c_ident }}, 0,
@@ -235,16 +244,30 @@ void snesstudio_hide_actor(const char *actor_id) { (void)actor_id; }
 void snesstudio_show_actor(const char *actor_id) { (void)actor_id; }
 void snesstudio_set_sprite_frame(const char *actor_id, const char *frame) { (void)actor_id; (void)frame; }
 
-/* one overworld frame: read pad, walk with collision, draw player */
+/* one gameplay frame: read pad, resolve collision, draw player */
 void snesstudio_update(void) {
     unsigned short pad = padsCurrent(0);
     short nx = player_x, ny = player_y;
-    if (pad & KEY_LEFT)  nx -= WALK_SPEED;
-    if (pad & KEY_RIGHT) nx += WALK_SPEED;
-    if (pad & KEY_UP)    ny -= WALK_SPEED;
-    if (pad & KEY_DOWN)  ny += WALK_SPEED;
-    if (!blocked(nx, player_y)) player_x = nx;
-    if (!blocked(player_x, ny)) player_y = ny;
+    if (current_scene_mode == SCENE_MODE_PLATFORM) {
+        if (pad & KEY_LEFT)  nx -= WALK_SPEED;
+        if (pad & KEY_RIGHT) nx += WALK_SPEED;
+        if (!blocked(nx, player_y)) player_x = nx;
+        if ((pad & KEY_B) && !(prev_pad & KEY_B) && blocked(player_x, player_y + 1)) player_vy = -JUMP_SPEED;
+        if (player_vy < MAX_FALL) player_vy += GRAVITY_STEP;
+        ny = player_y + player_vy;
+        if (!blocked(player_x, ny)) {
+            player_y = ny;
+        } else {
+            player_vy = 0;
+        }
+    } else {
+        if (pad & KEY_LEFT)  nx -= WALK_SPEED;
+        if (pad & KEY_RIGHT) nx += WALK_SPEED;
+        if (pad & KEY_UP)    ny -= WALK_SPEED;
+        if (pad & KEY_DOWN)  ny += WALK_SPEED;
+        if (!blocked(nx, player_y)) player_x = nx;
+        if (!blocked(player_x, ny)) player_y = ny;
+    }
 
     if ((pad & KEY_A) && !(prev_pad & KEY_A)) snesstudio_on_action();
     snesstudio_on_step();

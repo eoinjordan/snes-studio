@@ -27,11 +27,17 @@ class SceneRequest(BaseModel):
     id: str
     name: str
     background: str | None = None
+    mode: str = "topdown"
 
 class SceneUpdateRequest(BaseModel):
     name: str | None = None
+    mode: str | None = None
     background: str | None = None
     paint: list[int] | None = None
+    paint_palette: list[str] | None = None
+    tilemap: list[int] | None = None
+    tileset: str | None = None
+    collision: list[dict[str, Any]] | None = None
     notes: str | None = None
 
 class ActorRequest(BaseModel):
@@ -140,12 +146,12 @@ def create_app(project_path: str) -> FastAPI:
 
     @app.post("/api/scenes")
     def api_add_scene(req: SceneRequest):
-        data = editor.add_scene(model_to_jsonable(read()), req.id, req.name, req.background); backup = write(data); return {"backup": backup, "project": data}
+        data = editor.add_scene(model_to_jsonable(read()), req.id, req.name, req.background, req.mode); backup = write(data); return {"backup": backup, "project": data}
 
     @app.patch("/api/scenes/{scene_id}")
     def api_update_scene(scene_id: str, req: SceneUpdateRequest):
         try:
-            data = editor.update_scene(model_to_jsonable(read()), scene_id, name=req.name, background=req.background, paint=req.paint, notes=req.notes); backup = write(data); return {"backup": backup, "project": data}
+            data = editor.update_scene(model_to_jsonable(read()), scene_id, name=req.name, mode=req.mode, background=req.background, paint=req.paint, paint_palette=req.paint_palette, tilemap=req.tilemap, tileset=req.tileset, collision=req.collision, notes=req.notes); backup = write(data); return {"backup": backup, "project": data}
         except KeyError as exc: raise HTTPException(status_code=404, detail=str(exc))
 
     @app.post("/api/scenes/{scene_id}/actors")

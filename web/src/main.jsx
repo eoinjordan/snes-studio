@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { motion } from 'framer-motion';
 import { Gamepad2, FolderOpen, Save, Code2, Play, MonitorPlay, Download, Upload, Wifi, WifiOff, Plus, ChevronRight, Palette, Map, GitBranch, Blocks, Image as ImageIcon, MousePointer2, Move, Square, Circle, Link2, Paintbrush, Eraser, Copy, Trash2, Wand2, Eye, ShieldCheck, CheckCircle2, AlertTriangle, Users, MessageSquare, Settings2, Layers, X } from 'lucide-react';
 import { StudioClient } from './api.js';
+import { connectDiscordActivity } from './discord.js';
 import { imageToSprite, AI_PIXEL_TOOLS, imageToScenePaint, paintToWallCollisions, darkestIndex, SCENE_PRESETS, SCENE_COLS, SCENE_ROWS } from './sprite-import.js';
 import './styles.css';
 
@@ -13,6 +14,11 @@ const EXAMPLES = [
   { slug: 'poachermon', name: 'Poachermon', desc: 'Safari rescue template' },
   { slug: 'hello-human', name: 'Hello Human', desc: 'Small starter project' }
 ];
+const SCENE_MODES = [
+  { value: 'topdown', label: 'Top-down adventure' },
+  { value: 'platformer', label: 'Platformer / side-scroller' }
+];
+const sceneModeLabel = (mode) => SCENE_MODES.find(m => m.value === mode)?.label || 'Top-down adventure';
 const slug = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'item';
 const uniqueId = (base, existing) => { const has = new Set(existing); let id = base, n = 2; while (has.has(id)) id = `${base}_${n++}`; return id; };
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -331,7 +337,7 @@ function SceneCanvas({ scene, sprites, bgTileset, selectedActor, actor, setSelec
     });
   };
 
-  return <section className="card grow"><div className="section-title"><div><h2>Scene Canvas: {scene?.name || 'No scene'}</h2></div><div className="two"><Pill tone="blue">SNES 256 x 224</Pill>{scene ? <button className="icon" title="Add actor" onClick={onAddActor}><Plus size={16}/></button> : null}</div></div>
+  return <section className={`card grow scene-${scene?.mode || 'topdown'}`}><div className="section-title"><div><h2>Scene Canvas: {scene?.name || 'No scene'}</h2><p>{sceneModeLabel(scene?.mode)} workflow</p></div><div className="two"><Pill tone={scene?.mode==='platformer'?'warn':'blue'}>{scene?.mode==='platformer'?'Platformer':'Top-down'}</Pill><Pill tone="blue">SNES 256 x 224</Pill>{scene ? <button className="icon" title="Add actor" onClick={onAddActor}><Plus size={16}/></button> : null}</div></div>
     <SceneStats scene={scene} tool={tool} selectedZone={selectedZone} actor={actor}/>
     <div className="toolbar tool-rack">
       <div className="tool-group"><Tool icon={MousePointer2} label="Select" active={tool==='select'} onClick={()=>setTool('select')}/><Tool icon={Move} label="Move" active={tool==='move'} onClick={()=>setTool('move')}/></div>
@@ -354,7 +360,8 @@ function SceneCanvas({ scene, sprites, bgTileset, selectedActor, actor, setSelec
       {(scene?.triggers||[]).map(t=><button key={t.id} className={`trigger ${selectedZone?.kind==='trigger'&&selectedZone?.id===t.id?'sel':''}`} style={{left:t.x*SCALE_X, top:t.y*SCALE_Y, width:t.w*SCALE_X, height:t.h*SCALE_Y}} onClick={()=>{ setSelectedZone({kind:'trigger',id:t.id}); setSelectedActor(null); }}>Trigger</button>)}
       {draw ? <div className={tool === 'collision' ? 'collision' : 'trigger'} style={{left:draw.x*SCALE_X, top:draw.y*SCALE_Y, width:draw.w*SCALE_X, height:draw.h*SCALE_Y}}>{tool === 'collision' ? 'Collision' : 'Trigger'}</div> : null}
       {(scene?.actors||[]).map(a=>{ const pos = drag?.id===a.id ? drag : a; const spr = spriteById[a.sprite]; return <button key={a.id} onPointerDown={(e)=>startDrag(e,a)} className="actor" style={{left:pos.x*SCALE_X, top:pos.y*SCALE_Y, touchAction:'none'}}><motion.div animate={selectedActor===a.id?{y:[0,-4,0]}:{}} transition={{repeat:Infinity,duration:1.3}} className={`actor-spr ${selectedActor===a.id?'sel':''}`}>{spr ? <SpriteThumb sprite={spr} scale={2}/> : null}</motion.div><span>{a.name}</span></button>; })}
-      <div className="hud">A Talk · B Jump · Start Menu</div></div>
+      {scene?.mode==='platformer' ? <div className="platformer-guide"><span>ground</span><span>hazards</span><span>exits</span></div> : null}
+      <div className="hud">{scene?.mode==='platformer'?'D-pad Run · B Jump · A Talk':'A Talk · B Jump · Start Menu'}</div></div>
   </section>;
 }
 
@@ -407,10 +414,13 @@ function SceneHierarchy({ scene, selectedActor, setSelectedActor, selectedZone, 
   </section>;
 }
 
-function Inspector({ scene, scenes, actor, chains, onUpdate, onDelete, onLinkActorScene }) {
+function Inspector({ scene, scenes, actor, chains, onUpdate, onDelete, onLinkActorScene, onUpdateScene }) {
   const [form, setForm] = useState({});
   useEffect(() => { setForm({ name: actor?.name ?? '', x: actor?.x ?? 0, y: actor?.y ?? 0, interact: actor?.events?.interact ?? '' }); }, [actor?.id]);
-  if (!actor) return <section className="card"><div className="section-title"><h2><Settings2 size={18}/> Inspector</h2></div><p>Select or add an actor to edit its properties.</p></section>;
+  if (!actor) return <section className="card"><div className="section-title"><h2><Settings2 size={18}/> Scene Settings</h2><Pill tone={scene?.mode==='platformer'?'warn':'blue'}>{scene?.mode==='platformer'?'Platformer':'Top-down'}</Pill></div>
+    <p className="hint">Set how this scene should be authored. Platformer mode keeps the same tile, actor, collision, trigger, and event workflow, but frames it for side-scrolling levels.</p>
+    {scene ? <label>Game style<select value={scene.mode || 'topdown'} onChange={e=>onUpdateScene(scene.id, { mode: e.target.value })}>{SCENE_MODES.map(m=><option key={m.value} value={m.value}>{m.label}</option>)}</select></label> : null}
+  </section>;
   const commit = (fields) => onUpdate(scene.id, actor.id, fields);
   const commitInteract = (v) => commit({ events: { ...(actor.events||{}), ...(v ? { interact: v } : {}) } });
   return <section className="card"><div className="section-title"><h2><Settings2 size={18}/> Inspector</h2><Pill tone="blue">{actor.sprite||'none'}</Pill></div>
@@ -480,8 +490,8 @@ function RomPreview({ romUrl, romName, onPick, onPlayBuiltIn }) {
   </section>;
 }
 
-// Import an image (e.g. AI-generated pixel art) and convert it to a sprite.
-function SpriteImportModal({ onClose, onImport }) {
+// Import an image and convert it to a sprite.
+function SpriteImportModal({ onClose, onImport, showAiLinks = false }) {
   const [img, setImg] = useState(null);
   const [size, setSize] = useState(16);
   const [colors, setColors] = useState(12);
@@ -499,8 +509,8 @@ function SpriteImportModal({ onClose, onImport }) {
   };
 
   return <div className="modal-backdrop"><div className="modal import-modal">
-    <div className="modal-head"><div><h2><Wand2 size={16}/> Import sprite from image</h2><p>Drop in any PNG/JPG — including AI-generated pixel art — and it’s converted to a SNES sprite.</p></div><button type="button" className="icon" onClick={onClose}><X size={16}/></button></div>
-    <div className="ai-tools"><span>Generate pixel art with:</span>{AI_PIXEL_TOOLS.map(t => <a key={t.name} href={t.url} target="_blank" rel="noopener noreferrer">{t.name} ↗</a>)}</div>
+    <div className="modal-head"><div><h2><ImageIcon size={16}/> Import sprite from image</h2><p>Drop in any PNG/JPG and SNES Studio converts it to a SNES sprite.</p></div><button type="button" className="icon" onClick={onClose}><X size={16}/></button></div>
+    {showAiLinks ? <div className="ai-tools"><span>Optional image generators:</span>{AI_PIXEL_TOOLS.map(t => <a key={t.name} href={t.url} target="_blank" rel="noopener noreferrer">{t.name} ↗</a>)}</div> : null}
     <div className="import-body">
       <div className="import-controls">
         <label className="field">Image file<input type="file" accept="image/*" onChange={onFile}/></label>
@@ -536,19 +546,22 @@ function ScenePaintThumb({ paint, palette, scale = 7 }) {
   return <canvas ref={ref} style={{ width: SCENE_COLS * scale, height: SCENE_ROWS * scale, imageRendering: 'pixelated', borderRadius: 8, display: 'block' }} />;
 }
 
-// Bring-your-own-key AI settings for the Coding Helper.
+// Optional AI settings for the Coding Helper and external image-generator links.
 function AiSettingsModal({ onClose, onSaved }) {
   const [key, setKey] = useState(() => { try { return localStorage.getItem('snesstudio_llm_key') || ''; } catch { return ''; } });
   const [model, setModel] = useState(() => { try { return localStorage.getItem('snesstudio_llm_model') || 'claude-haiku-4-5'; } catch { return 'claude-haiku-4-5'; } });
+  const [enabled, setEnabled] = useState(() => { try { return localStorage.getItem('snesstudio_ai_tools_enabled') === 'true'; } catch { return false; } });
   const save = () => {
     try {
       if (key.trim()) localStorage.setItem('snesstudio_llm_key', key.trim()); else localStorage.removeItem('snesstudio_llm_key');
       localStorage.setItem('snesstudio_llm_model', model.trim() || 'claude-haiku-4-5');
+      localStorage.setItem('snesstudio_ai_tools_enabled', enabled ? 'true' : 'false');
     } catch {}
-    onSaved(!!key.trim()); onClose();
+    onSaved({ aiOn: !!key.trim(), showAiTools: enabled }); onClose();
   };
   return <div className="modal-backdrop"><div className="modal">
-    <div className="modal-head"><div><h2><Wand2 size={16}/> AI Coding Helper settings</h2><p>Bring your own Anthropic API key for real AI help. The helper returns a patch you review before it’s applied.</p></div><button type="button" className="icon" onClick={onClose}><X size={16}/></button></div>
+    <div className="modal-head"><div><h2><Settings2 size={16}/> Studio Settings</h2><p>Keep game-building tools prominent. Optional AI helpers stay hidden unless enabled here.</p></div><button type="button" className="icon" onClick={onClose}><X size={16}/></button></div>
+    <label className="check-row"><input type="checkbox" checked={enabled} onChange={e=>setEnabled(e.target.checked)}/> Enable optional AI coding helper and external image-generator links</label>
     <div className="review-note"><strong>Your key stays in this browser.</strong><p>It’s saved in localStorage and sent only to api.anthropic.com from your machine. Leave blank to use the offline deterministic helper. Get a key at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer">console.anthropic.com</a>.</p></div>
     <label className="field">Anthropic API key<input type="password" placeholder="sk-ant-…" value={key} onChange={e => setKey(e.target.value)} autoFocus/></label>
     <label className="field">Model<input value={model} onChange={e => setModel(e.target.value)} placeholder="claude-haiku-4-5"/></label>
@@ -583,7 +596,7 @@ function TemplateGallery({ baseUrl, onClose, onUse }) {
 }
 
 // Build a scene background from an image or a preset, with optional wall collisions.
-function SceneImportModal({ sceneName, onClose, onApply }) {
+function SceneImportModal({ sceneName, onClose, onApply, showAiLinks = false }) {
   const [img, setImg] = useState(null);
   const [origUrl, setOrigUrl] = useState(null);
   const [colors, setColors] = useState(10);
@@ -602,9 +615,9 @@ function SceneImportModal({ sceneName, onClose, onApply }) {
   };
 
   return <div className="modal-backdrop"><div className="modal import-modal">
-    <div className="modal-head"><div><h2><Map size={16}/> Build background for “{sceneName}”</h2><p>Pick a building-block preset, or import any image / AI-generated art — it becomes a 32×28 tile background.</p></div><button type="button" className="icon" onClick={onClose}><X size={16}/></button></div>
+    <div className="modal-head"><div><h2><Map size={16}/> Build background for “{sceneName}”</h2><p>Pick a building-block preset, or import any image. It becomes a 32×28 tile background.</p></div><button type="button" className="icon" onClick={onClose}><X size={16}/></button></div>
     <div className="preset-row">{SCENE_PRESETS.map(p => <button key={p.name} className="preset" onClick={() => usePreset(p)}>{p.name}</button>)}</div>
-    <div className="ai-tools"><span>Generate pixel art with:</span>{AI_PIXEL_TOOLS.map(t => <a key={t.name} href={t.url} target="_blank" rel="noopener noreferrer">{t.name} ↗</a>)}</div>
+    {showAiLinks ? <div className="ai-tools"><span>Optional image generators:</span>{AI_PIXEL_TOOLS.map(t => <a key={t.name} href={t.url} target="_blank" rel="noopener noreferrer">{t.name} ↗</a>)}</div> : null}
     <div className="import-body">
       <div className="import-controls">
         <label className="field">Image file<input type="file" accept="image/*" onChange={onFile}/></label>
@@ -635,9 +648,12 @@ function App(){
   const [gallery,setGallery]=useState(false);
   const [aiSettings,setAiSettings]=useState(false);
   const [aiOn,setAiOn]=useState(false);
+  const [showAiTools,setShowAiTools]=useState(false);
+  const [discord,setDiscord]=useState({ active:false, ready:false });
   const [toolStatus,setToolStatus]=useState(null);
   const [bgTileset,setBgTileset]=useState(null);
-  useEffect(()=>{ try{ setAiOn(!!localStorage.getItem('snesstudio_llm_key')); }catch{} },[]);
+  useEffect(()=>{ try{ setAiOn(!!localStorage.getItem('snesstudio_llm_key')); setShowAiTools(localStorage.getItem('snesstudio_ai_tools_enabled') === 'true'); }catch{} },[]);
+  useEffect(()=>{ connectDiscordActivity().then(setDiscord).catch(e=>setDiscord({ active:true, ready:false, error:e.message })); },[]);
   useEffect(()=>{ fetch(`${import.meta.env.BASE_URL}assets/bg_overworld.json`).then(r=>r.ok?r.json():null).then(setBgTileset).catch(()=>{}); },[]);
   const fileInput = useRef(null);
   const romInput = useRef(null);
@@ -660,6 +676,7 @@ function App(){
   const onMoveActor = (id,x,y)=> commit(client.current.updateActor(scene.id, id, {x,y}), `Moved ${id} to (${x}, ${y}).`);
   const onUpdateActor = (sid,id,fields)=> commit(client.current.updateActor(sid, id, fields), `Updated ${id}.`);
   const onDeleteActor = (sid,id)=>{ commit(client.current.deleteActor(sid,id), `Deleted ${id}.`); setActorId(null); };
+  const onUpdateScene = (sid, fields)=> commit(client.current.updateScene(sid, fields), `Updated scene ${sid}.`);
   const onPaintSprite = (s)=> commit(client.current.updateSprite(s.id, s), `Saved sprite ${s.name}.`);
   const onAddSprite = (sprite) => commit(client.current.addSprite(sprite), `Added sprite ${sprite.name}.`);
   const onAssignSprite = (sid) => {
@@ -710,7 +727,10 @@ function App(){
   const onAddStep = (chain, block)=>{ if(!chain) return; const { then, else:_e, ...rest } = block.defaults||{}; const step={ id: uniqueId(slug(block.type), (chain.steps||[]).map(s=>s.id)), type: block.type, ...rest }; if(block.type==='if_flag'){ step.then=[]; step.else=[]; } commit(client.current.addStep(chain.id, step), `Added ${block.label} step.`); };
   const onDeleteStep = (cid, sid)=> commit(client.current.deleteStep(cid, sid), 'Removed step.');
 
-  function openSceneForm(){ setForm({ kind:'scene', title:'Add scene', submitLabel:'Add scene', fields:[{key:'name',label:'Scene name',type:'text',autoFocus:true}] }); }
+  function openSceneForm(){ setForm({ kind:'scene', title:'Add scene', submitLabel:'Add scene', initial:{mode: scene?.mode || 'topdown'}, fields:[
+    {key:'name',label:'Scene name',type:'text',autoFocus:true},
+    {key:'mode',label:'Game style',type:'select',options:SCENE_MODES}
+  ] }); }
   function openActorForm(){ if(!scene) return; setForm({ kind:'actor', title:`Add actor to ${scene.name}`, submitLabel:'Add actor', initial:{x:120,y:120,sprite:project?.sprites?.[0]?.id||''}, fields:[
     {key:'name',label:'Actor name',type:'text',autoFocus:true},{key:'x',label:'X (0â€“256)',type:'number'},{key:'y',label:'Y (0â€“224)',type:'number'},
     {key:'sprite',label:'Sprite',type:'select',options:(project?.sprites||[]).map(s=>({value:s.id,label:s.name}))}] }); }
@@ -722,7 +742,7 @@ function App(){
   async function submitForm(v){
     const kind = form.kind; setForm(null);
     try {
-      if(kind==='scene'){ const id=uniqueId(slug(v.name), (project?.scenes||[]).map(s=>s.id)); await commit(client.current.addScene(id, v.name||'New Scene'), `Added scene ${v.name}.`); setSceneId(id); }
+      if(kind==='scene'){ const id=uniqueId(slug(v.name), (project?.scenes||[]).map(s=>s.id)); await commit(client.current.addScene(id, v.name||'New Scene', null, v.mode || 'topdown'), `Added scene ${v.name}.`); setSceneId(id); }
       if(kind==='actor'){ const id=uniqueId(slug(v.name), (scene?.actors||[]).map(a=>a.id)); await commit(client.current.addActor(scene.id, {id, name:v.name||'New Actor', x:clamp(Number(v.x)||0,0,SCENE_W), y:clamp(Number(v.y)||0,0,SCENE_H), sprite:v.sprite||null}), `Added actor ${v.name}.`); setActorId(id); }
       if(kind==='chain'){ const id=uniqueId(slug(v.name), (project?.eventChains||[]).map(c=>c.id)); await commit(client.current.addChain(id, v.name||'New Chain'), `Added chain ${v.name}.`); setChainId(id); }
       if(kind==='sprite'){
@@ -789,15 +809,25 @@ function App(){
     }
   }
 
-  return <div className="page"><div className="shell"><header className="topbar"><div className="brand"><div className="logo"><Gamepad2/></div><div><h1>SNES Studio</h1><p>Scene editor Â· sprite painter Â· event chains Â· human-reviewed coding helper</p></div></div><div className="actions"><Btn className="secondary" onClick={()=>setGallery(true)}><Blocks size={16}/>Templates</Btn><Btn className="secondary" onClick={openProject}><FolderOpen size={16}/>Open</Btn><Btn className="secondary" onClick={()=>client.current.downloadProject()}><Save size={16}/>Save</Btn><Btn className="secondary" onClick={exportC}><Code2 size={16}/>Export C</Btn><Btn className="secondary" onClick={pickRom}><MonitorPlay size={16}/>Preview ROM</Btn><Btn className="primary" onClick={build}><Play size={16}/>Build ROM</Btn></div></header>
+  const workflow = [
+    { id: 'scene', label: 'Maps', detail: `${inventory.scene_count||0} scenes`, icon: Map },
+    { id: 'sprite', label: 'Sprites', detail: `${project?.sprites?.length||0} sprites`, icon: Palette },
+    { id: 'events', label: 'Events', detail: `${inventory.event_chain_count||0} chains`, icon: GitBranch },
+    { id: 'preview', label: 'Playtest', detail: rom?.name || 'ROM preview', icon: MonitorPlay }
+  ];
+  const sceneModes = [...new Set((project?.scenes || []).map(s => s.mode || 'topdown'))].map(sceneModeLabel).join(' + ') || 'Top-down adventure';
+
+  return <div className="page"><div className="shell"><header className="topbar"><div className="brand"><div className="logo"><Gamepad2/></div><div><h1>SNES Studio</h1><p>Scene editor · sprite painter · event chains · ROM export workflow</p></div></div><div className="actions"><Btn className="secondary" onClick={()=>setGallery(true)}><Blocks size={16}/>Templates</Btn><Btn className="secondary" onClick={openProject}><FolderOpen size={16}/>Open</Btn><Btn className="secondary" onClick={()=>client.current.downloadProject()}><Save size={16}/>Save</Btn><Btn className="secondary" onClick={exportC}><Code2 size={16}/>Export</Btn><Btn className="secondary play-action" onClick={pickRom}><MonitorPlay size={16}/>Play</Btn><Btn className="primary build-action" onClick={build}><Play size={16}/>Build</Btn><button className="icon settings-action" title="Studio settings" onClick={()=>setAiSettings(true)}><Settings2 size={16}/></button></div></header>
     <input ref={fileInput} type="file" accept=".snesproj,.json,application/json" style={{display:'none'}} onChange={onFile}/>
     <input ref={romInput} type="file" accept=".sfc,.smc" style={{display:'none'}} onChange={onRomFile}/>
-    <div className="modebar">{mode==='backend'?<Wifi size={16}/>:<WifiOff size={16}/>}<strong>{mode==='backend'?'Backend mode':'Online demo mode'}</strong><span>{log}</span><Btn className="secondary compact" onClick={()=>client.current.downloadProject()}><Download size={16}/>Download project</Btn></div>
+    <div className="modebar">{discord.active ? <Gamepad2 size={16}/> : mode==='backend'?<Wifi size={16}/>:<WifiOff size={16}/>}<strong>{discord.active ? 'Discord Activity' : mode==='backend'?'Backend mode':'Online demo mode'}</strong><span>{discord.active ? (discord.ready ? 'Discord SDK ready. Build and share SNES projects in a Discord Activity.' : `Discord SDK not ready: ${discord.error || 'waiting'}`) : log}</span><Btn className="secondary compact" onClick={()=>client.current.downloadProject()}><Download size={16}/>Download project</Btn></div>
+    <nav className="workflow-strip" aria-label="SNES Studio workflow">{workflow.map(item=>{ const Icon = item.icon; return <button key={item.id} className={view===item.id||item.id==='events'&&view==='blocks'?'active':''} onClick={()=>setView(item.id)}><Icon size={16}/><span>{item.label}</span><small>{item.detail}</small></button>; })}<div className="workflow-status"><strong>{project?.name||'Untitled project'}</strong><small>{scene?.name||'No scene selected'} · {mode==='backend'?'desktop build enabled':'browser editing mode'}</small></div></nav>
     <div className="workspace">
       <aside className="left">
-        <section className="card"><div className="section-title"><h2>Project</h2><Pill tone={mode==='backend'?'good':'blue'}>{mode}</Pill></div><div className="project-card"><strong>{project?.name||'Loading'}</strong><span>{inventory.scene_count||0} scenes Â· {inventory.actor_count||0} actors Â· {inventory.event_chain_count||0} chains</span></div></section>
+        <section className="card"><div className="section-title"><h2>Project</h2><Pill tone={discord.active ? 'good' : mode==='backend'?'good':'blue'}>{discord.active?'discord':mode}</Pill></div><div className="project-card"><strong>{project?.name||'Loading'}</strong><span>{sceneModes}</span><span>{inventory.scene_count||0} scenes · {inventory.actor_count||0} actors · {inventory.event_chain_count||0} chains</span></div></section>
+        {discord.active ? <section className="card discord-card"><div className="section-title"><h2><Gamepad2 size={18}/> Discord</h2><Pill tone={discord.ready?'good':'warn'}>{discord.ready?'ready':'setup'}</Pill></div><p className="hint">Runs inside Discord as an Activity. Share it by launching SNES Studio from the App Launcher in a server, DM, or group DM.</p><small>Application ID: {discord.clientId}</small></section> : null}
         <section className="card"><div className="section-title"><h2>Example Games</h2><Pill tone="warn">load</Pill></div>{EXAMPLES.map(ex=><button className={`row example-row ${project?.name===ex.name?'active':''}`} key={ex.slug} onClick={()=>loadExample(ex.slug, ex.name)}><span>{ex.name}</span><small>{ex.desc}</small><ChevronRight size={16}/></button>)}</section>
-        <section className="card"><div className="section-title"><h2>Scenes</h2><div className="two"><button className="icon" title="Build background (preset / image)" disabled={!scene} onClick={()=>setImportingScene(true)}><Map size={16}/></button><button className="icon" title="Add scene" onClick={openSceneForm}><Plus size={16}/></button></div></div>{(project?.scenes||[]).map(s=>{ const jt=sceneJumpTargets(project,s.id); return <button className={`row ${s.id===scene?.id?'active':''}`} key={s.id} onClick={()=>{setSceneId(s.id); setActorId(null);}}><span>{s.name}</span><small>{s.actors?.length||0} actors · {s.triggers?.length||0} triggers</small>{jt.length?<div className="jumps">{jt.map(tid=><span key={tid} className="jump-chip"><GitBranch size={10}/>{project.scenes.find(x=>x.id===tid)?.name||tid}</span>)}</div>:null}<ChevronRight size={16}/></button>; })}{scene ? <Btn className="secondary full" onClick={()=>setImportingScene(true)}><Map size={16}/>Build background</Btn> : null}</section>
+        <section className="card"><div className="section-title"><h2>Scenes</h2><div className="two"><button className="icon" title="Build background (preset / image)" disabled={!scene} onClick={()=>setImportingScene(true)}><Map size={16}/></button><button className="icon" title="Add scene" onClick={openSceneForm}><Plus size={16}/></button></div></div>{(project?.scenes||[]).map(s=>{ const jt=sceneJumpTargets(project,s.id); return <button className={`row ${s.id===scene?.id?'active':''}`} key={s.id} onClick={()=>{setSceneId(s.id); setActorId(null);}}><span>{s.name}</span><small>{s.mode==='platformer'?'Platformer':'Top-down'} · {s.actors?.length||0} actors · {s.triggers?.length||0} triggers</small>{jt.length?<div className="jumps">{jt.map(tid=><span key={tid} className="jump-chip"><GitBranch size={10}/>{project.scenes.find(x=>x.id===tid)?.name||tid}</span>)}</div>:null}<ChevronRight size={16}/></button>; })}{scene ? <Btn className="secondary full" onClick={()=>setImportingScene(true)}><Map size={16}/>Build background</Btn> : null}</section>
         <section className="card"><div className="section-title"><h2><ImageIcon size={16}/> Assets</h2><div className="two"><button className="icon" title="Import sprite from image (AI art)" onClick={()=>setImporting(true)}><Wand2 size={16}/></button><button className="icon" title="Add sprite" onClick={openSpriteForm}><Plus size={16}/></button></div></div>{(project?.sprites||[]).map(s=><button className={`asset asset-spr ${s.id===sprite?.id?'active':''}`} key={s.id} onClick={()=>{setSpriteId(s.id); setView('sprite');}}><SpriteThumb sprite={s} scale={2}/><span>{s.name}<small>Sprite · {s.width}x{s.height} · {(s.frames||[]).length} frames</small></span></button>)}<Btn className="secondary full" onClick={()=>setImporting(true)}><Wand2 size={16}/>Import from image</Btn></section>
       </aside>
       <main className="main">
@@ -809,10 +839,10 @@ function App(){
       </main>
       <aside className="right">
         {view==='scene'
-          ? <><SceneHierarchy scene={scene} selectedActor={actor?.id} setSelectedActor={setActorId} selectedZone={selectedZone} setSelectedZone={setSelectedZone}/>{selectedZone ? <SceneTools scene={scene} scenes={project?.scenes||[]} selectedZone={selectedZone} setSelectedZone={setSelectedZone} onUpdateCollision={onUpdateCollision} onDeleteCollision={onDeleteCollision} onUpdateTrigger={onUpdateTrigger} onDeleteTrigger={onDeleteTrigger} onLinkTriggerScene={linkTriggerToScene}/> : <Inspector scene={scene} scenes={project?.scenes||[]} actor={actor} chains={project?.eventChains||[]} onUpdate={onUpdateActor} onDelete={onDeleteActor} onLinkActorScene={linkActorToScene}/>}</>
-          : <Inspector scene={scene} scenes={project?.scenes||[]} actor={actor} chains={project?.eventChains||[]} onUpdate={onUpdateActor} onDelete={onDeleteActor} onLinkActorScene={linkActorToScene}/>}
+          ? <><SceneHierarchy scene={scene} selectedActor={actor?.id} setSelectedActor={setActorId} selectedZone={selectedZone} setSelectedZone={setSelectedZone}/>{selectedZone ? <SceneTools scene={scene} scenes={project?.scenes||[]} selectedZone={selectedZone} setSelectedZone={setSelectedZone} onUpdateCollision={onUpdateCollision} onDeleteCollision={onDeleteCollision} onUpdateTrigger={onUpdateTrigger} onDeleteTrigger={onDeleteTrigger} onLinkTriggerScene={linkTriggerToScene}/> : <Inspector scene={scene} scenes={project?.scenes||[]} actor={actor} chains={project?.eventChains||[]} onUpdate={onUpdateActor} onDelete={onDeleteActor} onLinkActorScene={linkActorToScene} onUpdateScene={onUpdateScene}/>}</>
+          : <Inspector scene={scene} scenes={project?.scenes||[]} actor={actor} chains={project?.eventChains||[]} onUpdate={onUpdateActor} onDelete={onDeleteActor} onLinkActorScene={linkActorToScene} onUpdateScene={onUpdateScene}/>}
         <section className="card"><div className="section-title"><h2><Download size={18}/> Installers</h2></div><p className="hint">Download desktop installers from the latest release.</p><div className="two"><a className="btn secondary" href={winInstaller}><Download size={16}/>Windows</a><a className="btn secondary" href={macInstaller}><Download size={16}/>macOS</a></div></section>
-        <section className="card"><div className="section-title"><h2><Wand2 size={18}/> Coding Helper</h2><div className="two"><Pill tone={aiOn?'good':'blue'}>{aiOn?'AI on':'offline'}</Pill><button className="icon" title="AI settings (API key)" onClick={()=>setAiSettings(true)}><Settings2 size={16}/></button></div></div><textarea value={prompt} onChange={e=>setPrompt(e.target.value)} placeholder="Ask in plain English, e.g. “add a sign that says welcome”, “make the elephant say thank you”, or “move the rival next to the judge”."/><Btn className="primary full" onClick={propose}><Wand2 size={16}/>Ask AI for help</Btn>{!aiOn?<p className="hint">Add an Anthropic API key in settings for real AI help.</p>:null}</section>
+        {showAiTools ? <section className="card optional-ai"><div className="section-title"><h2><Wand2 size={18}/> Optional Coding Helper</h2><div className="two"><Pill tone={aiOn?'good':'blue'}>{aiOn?'AI on':'offline'}</Pill><button className="icon" title="Studio settings" onClick={()=>setAiSettings(true)}><Settings2 size={16}/></button></div></div><textarea value={prompt} onChange={e=>setPrompt(e.target.value)} placeholder="Optional helper: describe a small reviewed patch, e.g. add dialogue or move an actor."/><Btn className="secondary full" onClick={propose}><Wand2 size={16}/>Draft reviewed patch</Btn>{!aiOn?<p className="hint">Add an Anthropic API key in settings for real AI help. Without a key this uses the safe offline helper.</p>:null}</section> : null}
         <section className="card"><div className="section-title"><h2><CheckCircle2 size={18}/> Build Checks</h2></div><p className="check"><CheckCircle2 size={14}/>Project schema valid</p><p className="check"><CheckCircle2 size={14}/>Event chains compile to C</p>{
   mode!=='backend'
     ? <p className="warn"><AlertTriangle size={14}/>Online mode: edit & preview only. Build playable ROMs in the offline app.</p>
@@ -825,13 +855,11 @@ function App(){
     </div></div>
     <PatchModal patch={patch} onClose={()=>setPatch(null)} onApply={apply}/>
     {form && <FieldModal title={form.title} fields={form.fields} initial={form.initial} submitLabel={form.submitLabel} onClose={()=>setForm(null)} onSubmit={submitForm}/>}
-    {importing && <SpriteImportModal onClose={()=>setImporting(false)} onImport={importSprite}/>}
-    {importingScene && <SceneImportModal sceneName={scene?.name||'scene'} onClose={()=>setImportingScene(false)} onApply={importScene}/>}
+    {importing && <SpriteImportModal onClose={()=>setImporting(false)} onImport={importSprite} showAiLinks={showAiTools}/>}
+    {importingScene && <SceneImportModal sceneName={scene?.name||'scene'} onClose={()=>setImportingScene(false)} onApply={importScene} showAiLinks={showAiTools}/>}
     {gallery && <TemplateGallery baseUrl={import.meta.env.BASE_URL} onClose={()=>setGallery(false)} onUse={useTemplate}/>}
-    {aiSettings && <AiSettingsModal onClose={()=>setAiSettings(false)} onSaved={setAiOn}/>}
+    {aiSettings && <AiSettingsModal onClose={()=>setAiSettings(false)} onSaved={({aiOn, showAiTools})=>{ setAiOn(aiOn); setShowAiTools(showAiTools); }}/>}
   </div>;
 }
 
 createRoot(document.getElementById('root')).render(<App/>);
-
-

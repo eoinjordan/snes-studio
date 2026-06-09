@@ -1,6 +1,6 @@
 {
   "name": "snes-studio-web",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,12 +10,13 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@discord/embedded-app-sdk": "^2.5.0",
     "@vitejs/plugin-react": "latest",
-    "vite": "latest",
+    "framer-motion": "latest",
+    "lucide-react": "latest",
     "react": "latest",
     "react-dom": "latest",
-    "lucide-react": "latest",
-    "framer-motion": "latest"
+    "vite": "latest"
   },
   "devDependencies": {
     "@playwright/test": "^1.55.0"

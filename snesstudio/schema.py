@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any, Literal
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+SceneMode = Literal["topdown", "platformer"]
 Button = Literal["A", "B", "X", "Y", "L", "R", "START", "SELECT"]
 ActionType = Literal[
     "show_text", "change_scene", "move_actor", "face_player", "set_flag", "if_flag",
@@ -104,6 +105,7 @@ class Zone(Rect):
 class Scene(BaseModel):
     id: str
     name: str
+    mode: SceneMode = "topdown"
     background: str | None = None
     actors: list[Actor] = Field(default_factory=list)
     collision: list[Collision] = Field(default_factory=list)

@@ -191,11 +191,11 @@ export class StudioClient {
   _localCommit(mutate) { const p = structuredClone(this.project); mutate(p); this.project = p; return p; }
   _scene(p, id) { const s = (p.scenes || []).find(x => x.id === id); if (!s) throw new Error(`scene not found: ${id}`); return s; }
 
-  async addScene(id, name, background = null) {
-    if (this.mode === 'backend') return this._commit(await this.fetchJson('/api/scenes', { method: 'POST', body: JSON.stringify({ id, name, background }) }));
+  async addScene(id, name, background = null, mode = 'topdown') {
+    if (this.mode === 'backend') return this._commit(await this.fetchJson('/api/scenes', { method: 'POST', body: JSON.stringify({ id, name, background, mode }) }));
     return this._localCommit(p => {
       if ((p.scenes || []).some(s => s.id === id)) throw new Error(`scene already exists: ${id}`);
-      (p.scenes ||= []).push({ id, name, background, actors: [], collision: [], triggers: [], paint: Array(32 * 28).fill(0) });
+      (p.scenes ||= []).push({ id, name, mode, background, actors: [], collision: [], triggers: [], paint: Array(32 * 28).fill(0) });
     });
   }
   async updateScene(sceneId, fields) {
