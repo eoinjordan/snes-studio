@@ -6,7 +6,7 @@ SNES Studio is a kid-friendly, human-in-the-loop, agent-assisted game builder fo
 
 <img width="1672" height="941" alt="image" src="https://github.com/user-attachments/assets/991461b2-86f0-4d46-82dd-86eb2422fad7" />
 
-
+[Join SNES-Studio Discord here](https://discord.gg/RCbYU3aP)
 
 ## Screenshots
 
