@@ -57,6 +57,12 @@ def test_platformer_runtime_branch_emitted(tmp_path):
     assert 'player_vy = -JUMP_SPEED' in runtime
 
 
+def test_desktop_launcher_disables_uvicorn_log_config():
+    source = Path("scripts/snes_studio_desktop.py").read_text()
+    assert "log_config=None" in source
+    assert "access_log=False" in source
+
+
 def test_hex_to_bgr555():
     assert assets.hex_to_bgr555('#000000') == 0
     assert assets.hex_to_bgr555('#ffffff') == 0x7fff

@@ -30,7 +30,7 @@ SNES Studio is a kid-friendly, human-in-the-loop, agent-assisted game builder fo
 ![Sprite Sheet 4](build/sheet_contact_4.png)
 
 
-This 1.1.0 repository is a complete publishable MVP. It gives you a polished editor shell, a real project model, top-down and platformer scene workflows, sprite editing primitives, event-chain logic, optional reviewed AI helper tools, C export, GitHub Pages demo mode, Discord Activity mode, and local backend mode.
+This 1.1.1 repository is a complete publishable MVP. It gives you a polished editor shell, a real project model, top-down and platformer scene workflows, sprite editing primitives, event-chain logic, optional reviewed AI helper tools, C export, GitHub Pages demo mode, Discord Activity mode, and local backend mode.
 
 The studio opens on its flagship showcase game, **Pocket Bugs** - a garden-bug battler where kids catch bugs in matchboxes and battle in backyard tournaments. It's built entirely from SNES Studio's own scene/sprite/event model (`python scripts/make_pocket_bugs.py`) and ships with embedded CC0 OpenGameArt sprite/tile sources documented in `docs/ASSET_SOURCES.md`.
 
@@ -260,13 +260,13 @@ To build and verify the Windows installer locally:
 ```powershell
 # One-time prerequisite for full installer output:
 # install Inno Setup 6 so ISCC.exe exists (PATH or default install dir)
-./scripts/package_windows.ps1 -Version 1.1.0-local
+./scripts/package_windows.ps1 -Version 1.1.1-local
 ```
 
 If you only need to verify the desktop/CLI payload binaries locally (without generating the `.exe` installer):
 
 ```powershell
-./scripts/package_windows.ps1 -Version 1.1.0-local -SkipInstaller
+./scripts/package_windows.ps1 -Version 1.1.1-local -SkipInstaller
 ./build/windows/payload/snes-studio.exe validate examples/hello-human/project.snesproj --json
 ```
 
@@ -286,7 +286,7 @@ VITE_GITHUB_REPO=owner/repo
 
 ## Versioning, Tags, and Build Information
 
-**Current version:** 1.1.0
+**Current version:** 1.1.1
 
 This project uses [semantic versioning](https://semver.org/) for releases. Each release is tagged in git as `vX.Y.Z` (e.g., `v1.0.7`).
 
@@ -312,9 +312,9 @@ Installers are built on tag pushes (`v*`) by:
 
 See the workflow files for more details.
 
-## What 1.1.0 means
+## What 1.1.1 means
 
-Version 1.1.0 means the repository is clean, publishable, documented, testable, supports Discord Activity launch, and includes first-class platformer scene metadata/runtime behavior. It does not mean feature parity with GB Studio or a production-ready SNES compiler.
+Version 1.1.1 means the repository is clean, publishable, documented, testable, supports Discord Activity launch, includes first-class platformer scene metadata/runtime behavior, and fixes a Windows desktop launcher Uvicorn logging formatter issue seen in the installer build. It does not mean feature parity with GB Studio or a production-ready SNES compiler.
 
 ## Roadmap
 

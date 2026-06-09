@@ -77,6 +77,8 @@ def start_server(project_path: Path, static_dir: Path, port: int) -> uvicorn.Ser
         host="127.0.0.1",
         port=port,
         log_level="warning",
+        log_config=None,
+        access_log=False,
     )
     server = uvicorn.Server(config)
     thread = threading.Thread(target=server.run, daemon=True)
