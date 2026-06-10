@@ -2,9 +2,9 @@
 # SNES Studio 1.0.9
 
 
-SNES Studio is a kid-friendly, human-in-the-loop, agent-assisted game builder for Super Nintendo homebrew projects.
+SNES Studio is a student-friendly, human-in-the-loop, agent-assisted game builder for Super Nintendo homebrew projects.
 
-<img width="1672" height="941" alt="image" src="https://github.com/user-attachments/assets/991461b2-86f0-4d46-82dd-86eb2422fad7" />
+<img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/3b6c19cb-ddc2-4521-b585-827533af7315" />
 
 [Join SNES-Studio Discord here](https://discord.gg/RCbYU3aP)
 
