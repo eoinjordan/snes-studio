@@ -8,6 +8,7 @@ dist/
 *.egg-info/
 web/node_modules/
 web/dist/
+web/test-results/
 tmp-e2e/
 .DS_Store
 .env

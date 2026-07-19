@@ -22,10 +22,10 @@ immediately oriented. The left→centre→right flow is correct.
 - **Consistent "import from image" pattern.** Sprites and scenes use the *same*
   flow (image/AI art → quantize → preview → apply), with links to GameTorch /
   Pixie / Layer.ai / AI Pixel Kit. Learn it once, use it everywhere.
-- **One-click scene jumps.** Selecting a trigger or actor and picking "go to
-  scene" builds and links the `change_scene` chain for you; the Scenes panel
-  shows outgoing jumps as flow chips. This removes the most tedious part of
-  hand-building event chains.
+- **One-click scene jumps.** The Scene Flow panel lets GB Studio users pick a
+  target scene and create the trigger + `change_scene` event chain in one action.
+  Existing trigger/actor "go to scene" shortcuts still work, and the Scenes panel
+  shows outgoing jumps as flow chips.
 - **Templates** give a professional starting point instead of a blank canvas.
 
 ## Friction points & recommendations

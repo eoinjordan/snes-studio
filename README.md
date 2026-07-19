@@ -11,7 +11,13 @@ SNES Studio is a student-friendly, human-in-the-loop, agent-assisted game builde
 ## Screenshots
 
 ### Main Editor UI
-![Main Editor UI](web-ui-screenshot.png)
+![Main Editor UI](docs/screenshots/main-editor.png)
+
+### Scene Flow Menu
+![Scene Flow Menu](docs/screenshots/scene-flow-menu.png)
+
+### Scene Flow Transition
+![Scene Flow Transition](docs/screenshots/scene-flow-transition.png)
 
 ### Sample Game: Pocket Bugs
 ![Pocket Bugs Contact Sheet](build/pocket-bugs-listed-contact.png)
@@ -59,6 +65,7 @@ The agent never silently edits the game. Every helper change is reviewable.
 - Discord Activity mode for publishing inside Discord
 - Local Python/FastAPI backend mode
 - Scene list and scene canvas
+- GB Studio-style Scene Flow panel for one-click scene chaining and transitions
 - Top-down adventure scenes and platformer / side-scroller scenes
 - Tile-based background editor (Zelda/Pokemon-style) with a bundled OpenGameArt overworld tileset, painted to real SNES BG tilemaps
 - Actor editing: add, update, delete, move
@@ -150,6 +157,22 @@ snes-studio add-actor examples/hello-human/project.snesproj --scene lab --id men
 snes-studio add-event-chain examples/hello-human/project.snesproj --id mentor_intro --name "Mentor Intro"
 snes-studio add-step examples/hello-human/project.snesproj --chain mentor_intro --type show_text --text "Welcome to SNES Studio."
 ```
+
+## GB Studio-style scene chaining
+
+The editor includes a **Scene Flow** panel beside the canvas. It is designed for
+GB Studio users who expect scene transitions to be managed from a visual scene
+menu instead of manually wiring every event chain.
+
+- Pick a scene in the left scene list or in **Scene Flow**.
+- Choose a target scene in **Connect current scene to**.
+- Click **Add scene transition**.
+- SNES Studio creates a trigger zone at the right edge of the current scene.
+- It creates a `change_scene` event chain and links that trigger to the target.
+- The scene list and Scene Flow panel show outgoing arrows so the project map is readable.
+
+You can still edit the generated trigger bounds, event chain, and dialogue/event
+steps manually afterward.
 
 ## Building a real ROM: PVSnesLib toolchain setup
 

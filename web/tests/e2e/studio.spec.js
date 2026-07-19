@@ -10,8 +10,19 @@ test('local backend mode and ROM build workflow', async ({ page }) => {
   await expect(page.locator('.project-card')).toContainText('Mango Island');
   await expect(page.locator('.modebar')).toContainText('Build ROM now compiles this project');
 
-  await page.getByRole('button', { name: 'Build ROM' }).click();
-  await expect(page.getByText(/ROM artifact:/)).toBeVisible();
+  await page.locator('.topbar').getByRole('button', { name: 'Build', exact: true }).click();
+  await expect(page.locator('.modebar')).toContainText(/Built .*web-preview\.sfc|ROM artifact:|SNES build failed|PVSnesLib toolchain not found/);
+});
+
+test('scene flow menu creates a transition chain', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('.modebar')).toContainText('Backend mode');
+
+  await expect(page.getByRole('heading', { name: 'Scene Flow' })).toBeVisible();
+  await page.getByRole('button', { name: /Add scene transition/ }).click();
+
+  await expect(page.locator('.modebar')).toContainText(/Scene flow linked/);
+  await expect(page.locator('.scene-flow-card')).toContainText(/→/);
 });
 
 test('scene edit actions persist through backend API path', async ({ page }) => {

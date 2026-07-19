@@ -414,6 +414,35 @@ function SceneHierarchy({ scene, selectedActor, setSelectedActor, selectedZone, 
   </section>;
 }
 
+function SceneFlowPanel({ project, scene, setSceneId, onCreateTransition }) {
+  const [target, setTarget] = useState('');
+  const scenes = project?.scenes || [];
+  const outgoing = scene ? sceneJumpTargets(project, scene.id) : [];
+  useEffect(() => {
+    if (!scene) return;
+    setTarget(t => (t && t !== scene.id && scenes.some(s => s.id === t)) ? t : (scenes.find(s => s.id !== scene.id)?.id || ''));
+  }, [scene?.id, scenes.length]);
+  return <section className="card scene-flow-card">
+    <div className="section-title"><div><h2><GitBranch size={18}/> Scene Flow</h2><p>GB Studio-style scene chaining menu.</p></div><Pill tone="blue">{outgoing.length} exits</Pill></div>
+    <div className="flow-list">
+      {scenes.map(s => {
+        const links = sceneJumpTargets(project, s.id);
+        return <button key={s.id} className={`flow-scene ${s.id===scene?.id?'active':''}`} onClick={()=>setSceneId(s.id)}>
+          <span>{s.name}</span>
+          <small>{s.mode==='platformer'?'Platformer':'Top-down'} · {links.length ? `→ ${links.map(id => scenes.find(x=>x.id===id)?.name || id).join(', ')}` : 'no exits'}</small>
+        </button>;
+      })}
+    </div>
+    {scene && scenes.length > 1 ? <div className="flow-create">
+      <label>Connect current scene to<select value={target} onChange={e=>setTarget(e.target.value)}>
+        {scenes.filter(s=>s.id!==scene.id).map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+      </select></label>
+      <Btn className="secondary full" disabled={!target} onClick={()=>onCreateTransition(target)}><GitBranch size={16}/>Add scene transition</Btn>
+      <p className="hint">Creates a trigger at the right edge, adds a `change_scene` event chain, and links them automatically.</p>
+    </div> : <p className="hint">Add another scene to create transitions.</p>}
+  </section>;
+}
+
 function Inspector({ scene, scenes, actor, chains, onUpdate, onDelete, onLinkActorScene, onUpdateScene }) {
   const [form, setForm] = useState({});
   useEffect(() => { setForm({ name: actor?.name ?? '', x: actor?.x ?? 0, y: actor?.y ?? 0, interact: actor?.events?.interact ?? '' }); }, [actor?.id]);
@@ -661,6 +690,7 @@ function App(){
   const releaseBase = `https://github.com/${releaseRepo}/releases/latest/download`;
   const winInstaller = `${releaseBase}/SNES-Studio-Setup.exe`;
   const macInstaller = `${releaseBase}/SNES-Studio-macOS.pkg`;
+  const appIcon = `${import.meta.env.BASE_URL}branding/snes-studio-icon-64.png`;
 
   function applySnap(s){ setMode(s.mode); setProject(s.project); setInventory(s.inventory); setBlocks(s.blocks); client.current.toolchain().then(setToolStatus).catch(()=>{}); }
   useEffect(()=>{ client.current=new StudioClient(); client.current.boot().then(s=>{ applySnap(s); setSceneId(s.project?.scenes?.[0]?.id); setChainId(s.project?.eventChains?.[0]?.id); setSpriteId(s.project?.sprites?.[0]?.id); setLog(s.mode==='backend'?`Backend connected: ${client.current.backendTarget()}`:'Online demo mode.'); }).catch(e=>setLog(e.message)); },[]);
@@ -723,6 +753,22 @@ function App(){
       await commit(client.current.updateActor(scene.id, actorId, { events: { ...(a?.events||{}), interact: chainId } }), `${a?.name||actorId} jumps to ${target?.name||targetSceneId}.`);
       setChainId(chainId);
     } catch(e){ setLog(`Could not link scene jump: ${e.message}`); }
+  }
+  async function createSceneTransition(targetSceneId){
+    if(!scene || !targetSceneId) return;
+    const target = project.scenes.find(s=>s.id===targetSceneId);
+    const triggerId = uniqueId(`to_${slug(target?.name||targetSceneId)}`, (scene.triggers||[]).map(t=>t.id));
+    const chainId = uniqueId(`goto_${slug(targetSceneId)}`, (project.eventChains||[]).map(c=>c.id));
+    const trigger = { id: triggerId, name: `To ${target?.name||targetSceneId}`, x: SCENE_W - 24, y: Math.round(SCENE_H / 2) - 24, w: 24, h: 48 };
+    try {
+      await client.current.addTrigger(scene.id, trigger);
+      await client.current.addChain(chainId, `Go to ${target?.name||targetSceneId}`, { type:'zone_enter', zone: triggerId });
+      await client.current.addStep(chainId, { id:`${chainId}_go`, type:'change_scene', scene: targetSceneId });
+      await commit(client.current.updateTrigger(scene.id, triggerId, { event: chainId }), `Scene flow linked ${scene.name} → ${target?.name||targetSceneId}.`);
+      setSelectedZone({ kind:'trigger', id: triggerId });
+      setChainId(chainId);
+      setView('scene');
+    } catch(e){ setLog(`Could not create scene transition: ${e.message}`); }
   }
   const onAddStep = (chain, block)=>{ if(!chain) return; const { then, else:_e, ...rest } = block.defaults||{}; const step={ id: uniqueId(slug(block.type), (chain.steps||[]).map(s=>s.id)), type: block.type, ...rest }; if(block.type==='if_flag'){ step.then=[]; step.else=[]; } commit(client.current.addStep(chain.id, step), `Added ${block.label} step.`); };
   const onDeleteStep = (cid, sid)=> commit(client.current.deleteStep(cid, sid), 'Removed step.');
@@ -817,7 +863,7 @@ function App(){
   ];
   const sceneModes = [...new Set((project?.scenes || []).map(s => s.mode || 'topdown'))].map(sceneModeLabel).join(' + ') || 'Top-down adventure';
 
-  return <div className="page"><div className="shell"><header className="topbar"><div className="brand"><div className="logo"><Gamepad2/></div><div><h1>SNES Studio</h1><p>Scene editor · sprite painter · event chains · ROM export workflow</p></div></div><div className="actions"><Btn className="secondary" onClick={()=>setGallery(true)}><Blocks size={16}/>Templates</Btn><Btn className="secondary" onClick={openProject}><FolderOpen size={16}/>Open</Btn><Btn className="secondary" onClick={()=>client.current.downloadProject()}><Save size={16}/>Save</Btn><Btn className="secondary" onClick={exportC}><Code2 size={16}/>Export</Btn><Btn className="secondary play-action" onClick={pickRom}><MonitorPlay size={16}/>Play</Btn><Btn className="primary build-action" onClick={build}><Play size={16}/>Build</Btn><button className="icon settings-action" title="Studio settings" onClick={()=>setAiSettings(true)}><Settings2 size={16}/></button></div></header>
+  return <div className="page"><div className="shell"><header className="topbar"><div className="brand"><div className="logo app-logo"><img src={appIcon} alt="" /><Gamepad2/></div><div><h1>SNES Studio</h1><p>Scene editor · sprite painter · event chains · ROM export workflow</p></div></div><div className="actions"><Btn className="secondary" onClick={()=>setGallery(true)}><Blocks size={16}/>Templates</Btn><Btn className="secondary" onClick={openProject}><FolderOpen size={16}/>Open</Btn><Btn className="secondary" onClick={()=>client.current.downloadProject()}><Save size={16}/>Save</Btn><Btn className="secondary" onClick={exportC}><Code2 size={16}/>Export</Btn><Btn className="secondary play-action" onClick={pickRom}><MonitorPlay size={16}/>Play</Btn><Btn className="primary build-action" onClick={build}><Play size={16}/>Build</Btn><button className="icon settings-action" title="Studio settings" onClick={()=>setAiSettings(true)}><Settings2 size={16}/></button></div></header>
     <input ref={fileInput} type="file" accept=".snesproj,.json,application/json" style={{display:'none'}} onChange={onFile}/>
     <input ref={romInput} type="file" accept=".sfc,.smc" style={{display:'none'}} onChange={onRomFile}/>
     <div className="modebar">{discord.active ? <Gamepad2 size={16}/> : mode==='backend'?<Wifi size={16}/>:<WifiOff size={16}/>}<strong>{discord.active ? 'Discord Activity' : mode==='backend'?'Backend mode':'Online demo mode'}</strong><span>{discord.active ? (discord.ready ? 'Discord SDK ready. Build and share SNES projects in a Discord Activity.' : `Discord SDK not ready: ${discord.error || 'waiting'}`) : log}</span><Btn className="secondary compact" onClick={()=>client.current.downloadProject()}><Download size={16}/>Download project</Btn></div>
@@ -839,7 +885,7 @@ function App(){
       </main>
       <aside className="right">
         {view==='scene'
-          ? <><SceneHierarchy scene={scene} selectedActor={actor?.id} setSelectedActor={setActorId} selectedZone={selectedZone} setSelectedZone={setSelectedZone}/>{selectedZone ? <SceneTools scene={scene} scenes={project?.scenes||[]} selectedZone={selectedZone} setSelectedZone={setSelectedZone} onUpdateCollision={onUpdateCollision} onDeleteCollision={onDeleteCollision} onUpdateTrigger={onUpdateTrigger} onDeleteTrigger={onDeleteTrigger} onLinkTriggerScene={linkTriggerToScene}/> : <Inspector scene={scene} scenes={project?.scenes||[]} actor={actor} chains={project?.eventChains||[]} onUpdate={onUpdateActor} onDelete={onDeleteActor} onLinkActorScene={linkActorToScene} onUpdateScene={onUpdateScene}/>}</>
+          ? <><SceneHierarchy scene={scene} selectedActor={actor?.id} setSelectedActor={setActorId} selectedZone={selectedZone} setSelectedZone={setSelectedZone}/><SceneFlowPanel project={project} scene={scene} setSceneId={setSceneId} onCreateTransition={createSceneTransition}/>{selectedZone ? <SceneTools scene={scene} scenes={project?.scenes||[]} selectedZone={selectedZone} setSelectedZone={setSelectedZone} onUpdateCollision={onUpdateCollision} onDeleteCollision={onDeleteCollision} onUpdateTrigger={onUpdateTrigger} onDeleteTrigger={onDeleteTrigger} onLinkTriggerScene={linkTriggerToScene}/> : <Inspector scene={scene} scenes={project?.scenes||[]} actor={actor} chains={project?.eventChains||[]} onUpdate={onUpdateActor} onDelete={onDeleteActor} onLinkActorScene={linkActorToScene} onUpdateScene={onUpdateScene}/>}</>
           : <Inspector scene={scene} scenes={project?.scenes||[]} actor={actor} chains={project?.eventChains||[]} onUpdate={onUpdateActor} onDelete={onDeleteActor} onLinkActorScene={linkActorToScene} onUpdateScene={onUpdateScene}/>}
         <section className="card"><div className="section-title"><h2><Download size={18}/> Installers</h2></div><p className="hint">Download desktop installers from the latest release.</p><div className="two"><a className="btn secondary" href={winInstaller}><Download size={16}/>Windows</a><a className="btn secondary" href={macInstaller}><Download size={16}/>macOS</a></div></section>
         {showAiTools ? <section className="card optional-ai"><div className="section-title"><h2><Wand2 size={18}/> Optional Coding Helper</h2><div className="two"><Pill tone={aiOn?'good':'blue'}>{aiOn?'AI on':'offline'}</Pill><button className="icon" title="Studio settings" onClick={()=>setAiSettings(true)}><Settings2 size={16}/></button></div></div><textarea value={prompt} onChange={e=>setPrompt(e.target.value)} placeholder="Optional helper: describe a small reviewed patch, e.g. add dialogue or move an actor."/><Btn className="secondary full" onClick={propose}><Wand2 size={16}/>Draft reviewed patch</Btn>{!aiOn?<p className="hint">Add an Anthropic API key in settings for real AI help. Without a key this uses the safe offline helper.</p>:null}</section> : null}

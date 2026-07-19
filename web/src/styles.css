@@ -145,12 +145,20 @@ body:before{
   width:46px;
   height:46px;
   border-radius:14px;
+  overflow:hidden;
   color:#fff;
   background:linear-gradient(135deg,#4220a3,#9a5cff 54%,#28d7ff);
   border:1px solid #c084fc99;
   box-shadow:0 0 24px #9a5cff66,0 0 42px #39e8ff22;
 }
 .brand .logo:before{display:none}
+.brand .app-logo img{
+  width:100%;
+  height:100%;
+  display:block;
+  object-fit:cover;
+}
+.brand .app-logo svg{display:none}
 .logo svg{opacity:1;filter:drop-shadow(0 0 8px #fff)}
 .brand h1,.section-title h2,h2,h3{
   color:var(--neo-text);
@@ -443,6 +451,50 @@ body:before{
   border-color:#263152;
 }
 .hier-group strong{color:#c7ceea}
+.scene-flow-card{
+  border-color:#39e8ff66;
+}
+.flow-list{
+  display:flex;
+  flex-direction:column;
+  gap:7px;
+  max-height:220px;
+  overflow:auto;
+  padding-right:2px;
+}
+.flow-scene{
+  width:100%;
+  display:grid;
+  grid-template-columns:1fr;
+  gap:3px;
+  text-align:left;
+  border:1px solid #263152;
+  border-radius:12px;
+  background:#0b1125;
+  color:var(--neo-text);
+  padding:9px 10px;
+  cursor:pointer;
+}
+.flow-scene:hover{
+  border-color:#39e8ff88;
+  background:#111933;
+}
+.flow-scene.active{
+  border-color:#39e8ff;
+  background:linear-gradient(135deg,#0e2736,#172344);
+  box-shadow:0 0 18px #39e8ff22;
+}
+.flow-scene small{
+  color:var(--neo-muted);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.flow-create{
+  margin-top:12px;
+  padding-top:10px;
+  border-top:1px solid var(--neo-line);
+}
 @media(max-width:1250px){
   .workspace{grid-template-columns:250px minmax(560px,1fr)}
   .right{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}

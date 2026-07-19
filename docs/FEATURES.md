@@ -10,6 +10,7 @@ SNES Studio opens on **Pocket Bugs**, an original garden-bug battler. You catch 
 - Browser online demo mode with fallback sample project.
 - Local backend mode through FastAPI.
 - Scene model with actors, collision rectangles, and trigger zones.
+- Scene Flow panel for GB Studio-style scene chaining: choose a target scene and create the trigger + `change_scene` event chain in one action.
 - Sprite model with palettes and pixel frames.
 - Event-chain model with nested `if_flag` support.
 - Block palette definitions for dialogue, actor, scene, logic, timing, and sound actions.
@@ -23,6 +24,14 @@ SNES Studio opens on **Pocket Bugs**, an original garden-bug battler. You catch 
 - Generated PVSnesLib runtime engine (top-down overworld: walk + tilemap collision + dialogue boxes).
 - Integrated EmulatorJS ROM Preview (load and play a homebrew `.sfc`/`.smc` in-browser).
 - One-click deploy configs for Vercel (`vercel.json`) and Netlify (`netlify.toml`).
+
+## Current editor screenshots
+
+![Main editor](screenshots/main-editor.png)
+
+![Scene Flow menu](screenshots/scene-flow-menu.png)
+
+![Scene Flow transition](screenshots/scene-flow-transition.png)
 
 ## Not included yet
 

@@ -20,10 +20,12 @@ New-Item -ItemType Directory -Force -Path $payload | Out-Null
 New-Item -ItemType Directory -Force -Path $dist | Out-Null
 
 python -m PyInstaller --onefile --name snes-studio --distpath $payload `
+  --icon "packaging/icons/snes-studio.ico" `
   --add-data "snesstudio/assets;snesstudio/assets" `
   --add-data "snesstudio/templates;snesstudio/templates" `
   scripts/snes_studio_cli.py
 python -m PyInstaller --onefile --windowed --name "SNES Studio" --distpath $payload `
+  --icon "packaging/icons/snes-studio.ico" `
   --add-data "web/dist;web/dist" `
   --add-data "snesstudio/assets;snesstudio/assets" `
   --add-data "snesstudio/templates;snesstudio/templates" `
