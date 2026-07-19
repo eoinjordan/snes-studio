@@ -17,6 +17,8 @@ OutputBaseFilename=SNES-Studio-Setup
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
+SetupIconFile=..\icons\snes-studio.ico
+UninstallDisplayIcon={app}\{#MyAppExeName}
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -28,9 +30,9 @@ Name: "modifypath"; Description: "Add snes-studio to PATH"; GroupDescription: "A
 Source: "..\..\build\windows\payload\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{autoprograms}\SNES Studio"; Filename: "{app}\{#MyAppExeName}"
-Name: "{autoprograms}\SNES Studio CLI"; Filename: "{app}\{#MyCliExeName}"
-Name: "{autodesktop}\SNES Studio"; Filename: "{app}\{#MyAppExeName}"
+Name: "{autoprograms}\SNES Studio"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\{#MyAppExeName}"
+Name: "{autoprograms}\SNES Studio CLI"; Filename: "{app}\{#MyCliExeName}"; IconFilename: "{app}\{#MyAppExeName}"
+Name: "{autodesktop}\SNES Studio"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\{#MyAppExeName}"
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch SNES Studio"; Flags: nowait postinstall skipifsilent
